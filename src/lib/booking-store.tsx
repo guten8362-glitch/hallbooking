@@ -7,6 +7,7 @@ import { getUserIdByEmail, sendPushNotification, sendEmailNotification, sendBook
 import { getAllUsersFromDatabase } from "./appwrite/users";
 import { recordAuditLog } from "./services/audit";
 import { getStoredImpersonatedUser } from "./services/impersonation";
+import { APPWRITE_CONFIG } from "./appwrite/constants";
 
 const notifyRole = async (role: string, subject: string, content: string, targetInstitution?: string) => {
   try {

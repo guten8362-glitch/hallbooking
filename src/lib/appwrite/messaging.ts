@@ -10,12 +10,7 @@ import { functions } from './client';
 export const getUserIdByEmail = async (email: string) => {
   return null;
 };
-
-    console.error('Appwrite Messaging REST API Exception:', err);
-    return null;
-  }
-};
-
+// Send Push Notification
 export const sendPushNotification = async (userIds: string[], title: string, body: string, data?: any, institution?: string) => {
   const timestamp = new Date().toISOString();
   console.group(`[PUSH NOTIFICATION DIAGNOSTICS - ${timestamp}]`);

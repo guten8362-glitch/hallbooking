@@ -4,8 +4,6 @@ import { AppShell } from "@/components/AppShell";
 import { Button, PageTitle, Surface } from "@/components/ui-kit";
 import { useAuth, isAdminUser, isCoordinatorUser, getDefaultRouteForUser } from "@/lib/auth";
 import { loginWithGoogle } from "@/lib/appwrite/account";
-import { requestFCMToken } from "@/lib/firebase";
-import { updateUserFCMToken } from "@/lib/appwrite/users";
 import { account } from "@/lib/appwrite/client";
 import { ID } from "appwrite";
 import { Mail, Sparkles } from "lucide-react";

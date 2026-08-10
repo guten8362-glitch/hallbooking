@@ -1,4 +1,3 @@
-import { ID } from 'appwrite';
 import { APPWRITE_CONFIG } from './constants';
 import { functions } from './client';
 

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { 
   Eye, 
   Search, 
@@ -123,6 +123,68 @@ export function OrganizerPortal() {
       </AppShell>
     );
   }
+
+  // Add toast import if missing, else we assume sonner is available globally or we should import it.
+  // Wait, I can't just inject imports via this chunk easily without being careful. I'll add the import at the top later if needed.
+  // Actually, I can just use `toast` from "sonner" assuming it's available, or I'll import it.
+  
+  // Track alerted bookings to prevent spamming toasts
+  const [alerted] = useState(() => new Set<string>());
+
+  useEffect(() => {
+    // We need to dynamically import toast if we didn't import it at the top
+    import("sonner").then(({ toast }) => {
+      const checkReminders = () => {
+        const now = new Date();
+        confirmedBookings.forEach(b => {
+          if (alerted.has(b.id)) return; // Already alerted this session
+          
+          const eventDateStr = b.fromDate || b.date;
+          if (!eventDateStr || !b.startTime) return;
+          
+          // Parse event start time
+          const datePart = eventDateStr.split('T')[0];
+          const timePart = b.startTime; 
+          const eventStart = new Date(`${datePart}T${timePart}`);
+          
+          if (isNaN(eventStart.getTime())) return;
+          
+          const diffMinutes = (eventStart.getTime() - now.getTime()) / 60000;
+          
+          // If the event is already past, ignore
+          if (diffMinutes < 0) return;
+
+          let shouldAlert = false;
+          let alertMsg = "";
+
+          // 1. Check specific reminder
+          const specific = reminders[b.id];
+          if (specific && diffMinutes <= specific.minutesBefore) {
+            shouldAlert = true;
+            alertMsg = `Specific Reminder: ${b.eventName} is starting in less than ${specific.label}!`;
+          } 
+          // 2. Check global reminder
+          else if (!specific && diffMinutes <= globalReminderDays * 24 * 60) {
+            shouldAlert = true;
+            alertMsg = `Global Alert: ${b.eventName} is coming up in less than ${globalReminderDays} day(s)!`;
+          }
+
+          if (shouldAlert) {
+            toast.warning(alertMsg, {
+              description: `Venue: ${b.auditoriumId} | Setup required.`,
+              duration: 10000,
+            });
+            alerted.add(b.id);
+          }
+        });
+      };
+
+      // Run immediately and then every minute
+      checkReminders();
+      const interval = setInterval(checkReminders, 60000);
+      return () => clearInterval(interval);
+    });
+  }, [confirmedBookings, globalReminderDays, reminders, alerted]);
 
   if (user?.role !== "organizer" && user?.role !== "admin") {
     return (
@@ -297,28 +359,31 @@ export function OrganizerPortal() {
 
       {/* Booking Details Modal */}
       {selectedBooking && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg bg-card p-6 rounded-3xl border shadow-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md rise">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card p-6 rounded-3xl border shadow-2xl">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <span className="font-mono text-xs font-bold text-primary">{selectedBooking.id}</span>
-                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId)?.name}</h2>
+                <span className="font-mono text-xs font-bold text-primary">{selectedBooking.id || selectedBooking.$id || "NEW"}</span>
+                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId)?.name || "Unknown Venue"}</h2>
               </div>
-              <button onClick={() => setSelectedBooking(null)} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="size-5" /></button>
+              <button type="button" onClick={() => setSelectedBooking(null)} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="size-5" /></button>
             </div>
             <div className="space-y-2 text-xs bg-muted/40 p-4 rounded-2xl mb-4">
-              <div className="flex justify-between"><span className="text-muted-foreground">Institution:</span> <span className="font-semibold">{selectedBooking.institution}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Department:</span> <span className="font-semibold">{selectedBooking.department}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Coordinator:</span> <span className="font-semibold">{selectedBooking.coordinator}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Event:</span> <span className="font-semibold">{selectedBooking.eventName}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Dates:</span> <span className="font-semibold">{formatDate(selectedBooking.fromDate || selectedBooking.date, selectedBooking.toDate)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Participants:</span> <span className="font-bold text-primary">{selectedBooking.participants}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Institution:</span> <span className="font-semibold text-right">{selectedBooking.institution || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Department:</span> <span className="font-semibold text-right">{selectedBooking.department || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Coordinator:</span> <span className="font-semibold text-right">{selectedBooking.coordinator || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Event:</span> <span className="font-semibold text-right">{selectedBooking.eventName || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Dates:</span> <span className="font-semibold text-right">{formatDate(selectedBooking.fromDate || selectedBooking.date, selectedBooking.toDate)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Participants:</span> <span className="font-bold text-primary text-right">{selectedBooking.participants || "-"}</span></div>
               {selectedBooking.daisChairs && (
-                <div className="flex justify-between"><span className="text-muted-foreground">Chairs on Dais:</span> <span className="font-bold text-foreground">{selectedBooking.daisChairs}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Chairs on Dais:</span> <span className="font-bold text-foreground text-right">{selectedBooking.daisChairs}</span></div>
+              )}
+              {selectedBooking.facilitiesRequired && selectedBooking.facilitiesRequired.length > 0 && (
+                <div className="flex justify-between border-t border-border/50 pt-2 mt-2"><span className="text-muted-foreground">Facilities:</span> <span className="font-bold text-foreground text-right">{selectedBooking.facilitiesRequired.join(", ")}</span></div>
               )}
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setSelectedBooking(null)} className="px-4 py-2 rounded-xl bg-muted text-xs font-bold">Close</button>
+              <button type="button" onClick={() => setSelectedBooking(null)} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:brightness-110">Close</button>
             </div>
           </div>
         </div>

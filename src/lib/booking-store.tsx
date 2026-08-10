@@ -10,54 +10,32 @@ import { getStoredImpersonatedUser } from "./services/impersonation";
 
 const notifyRole = async (role: string, subject: string, content: string, targetInstitution?: string) => {
   try {
-    const users = await getAllUsersFromDatabase();
-    
-    // Filter users matching role and institution (if institution specified for coordinators)
-    let targetUsers = users.filter(u => {
-      const isRole = u.role === role || (role === 'admin' && u.role === 'super_admin');
-      if (!isRole) return false;
-      if (targetInstitution && role === 'coordinator') {
-        const uInst = (u.institution || '').toLowerCase().trim();
-        const tInst = targetInstitution.toLowerCase().trim();
-        return uInst === tInst || uInst.includes(tInst) || tInst.includes(uInst);
-      }
-      return true;
-    });
-
-    // Fallback: If no institution-specific coordinator found, fallback to any coordinator/admin
-    if (targetUsers.length === 0 && role === 'coordinator') {
-      targetUsers = users.filter(u => u.role === 'coordinator' || u.role === 'admin' || u.role === 'super_admin');
-    }
-
-    const userIds: string[] = targetUsers
-      .flatMap(u => [(u as any).mail_id, u.email, u.user_id])
-      .filter((id): id is string => Boolean(id));
-
-    // 1. Record In-App database notifications for target users (Synced with Appwrite DB)
-    for (const u of targetUsers) {
-      if (u.$id) {
-        createNotification({
-          userId: u.$id,
-          title: subject,
-          message: content,
-          type: "info"
-        }).catch(() => {});
-      }
-    }
-
-    // 2. Send Push Notification with Email Fallback
-    if (userIds.length > 0) {
-      try {
-        const pushRes = await sendPushNotification(userIds, subject, content, undefined, targetInstitution);
-        // If push notification returned null (e.g., target user has no registered push target), send email
-        if (!pushRes) {
-          console.warn("Push notification target missing. Attempting Email notification fallback...");
-          await sendEmailNotification(userIds, subject, content).catch(() => {});
-        }
-      } catch (pushErr) {
-        console.warn("Push dispatch error, triggering Email notification fallback:", pushErr);
-        await sendEmailNotification(userIds, subject, content).catch(() => {});
-      }
+    // SECURITY PATCH: Instead of fetching all users to the frontend (which leaks emails/FCM tokens in the Network tab),
+    // we instruct the secure Appwrite backend to resolve the users and send the notifications entirely server-side.
+    if (APPWRITE_CONFIG.notificationFunctionId) {
+      const payload = {
+        action: 'notify_role',
+        role,
+        subject,
+        content,
+        targetInstitution,
+        databaseId: APPWRITE_CONFIG.databaseId,
+        usersCollectionId: APPWRITE_CONFIG.collections.users,
+        notificationsCollectionId: APPWRITE_CONFIG.collections.notifications,
+      };
+      
+      // We must use the functions API directly to trigger this
+      const { functions } = await import("./appwrite/client");
+      
+      const res = await functions.createExecution(
+        APPWRITE_CONFIG.notificationFunctionId,
+        JSON.stringify(payload),
+        false // async
+      );
+      
+      console.log(`[notifyRole] Backend executed notify_role for ${role}`, res);
+    } else {
+      console.warn("⚠️ Cannot send role notifications securely. APPWRITE_CONFIG.notificationFunctionId is missing.");
     }
   } catch (err) {
     console.error("Failed to notify role:", role, err);

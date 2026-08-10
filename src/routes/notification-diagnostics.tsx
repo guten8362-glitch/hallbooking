@@ -49,7 +49,6 @@ function NotificationDiagnostics() {
     addLog("Fetching user records and push target diagnostics from Appwrite...");
     try {
       const dbUsers = await getAllUsersFromDatabase();
-      const apiKey = import.meta.env.VITE_APPWRITE_API_KEY || '';
       const localToken = localStorage.getItem("fcm_token") || "";
       const refreshedAt = localStorage.getItem("fcm_token_refreshed_at") || "Recently";
 
@@ -62,24 +61,8 @@ function NotificationDiagnostics() {
         let targets: any[] = [];
         let count = 0;
 
-        if (apiKey && u.$id) {
-          try {
-            const res = await fetch(`${APPWRITE_CONFIG.endpoint}/users/${u.$id}/targets`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
-                'X-Appwrite-Key': apiKey,
-              },
-            });
-            if (res.ok) {
-              const data = await res.json();
-              targets = data.targets || [];
-              count = targets.length;
-            }
-          } catch (e) {
-            console.warn("Failed to fetch targets for user:", u.$id, e);
-          }
-        }
+        // Note: Target diagnostics are disabled because we securely removed the VITE_APPWRITE_API_KEY from the frontend.
+        // Appwrite Auth targets can only be queried by a Serverless Function or the Appwrite Console now.
 
         items.push({
           $id: u.$id,

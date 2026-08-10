@@ -66,50 +66,27 @@ export const getAllUsersFromDatabase = async (): Promise<User[]> => {
   }
 };
 
-export const registerPushTargetServerSide = async (userId: string, token: string) => {
-  const apiKey = import.meta.env.VITE_APPWRITE_API_KEY || '';
-  if (!apiKey || !userId || !token) return false;
+export const registerPushTargetClientSide = async (token: string) => {
+  if (!token) return false;
 
   try {
-    const listRes = await fetch(`${APPWRITE_CONFIG.endpoint}/users/${userId}/targets`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
-        'X-Appwrite-Key': apiKey,
-      },
-    });
+    const user = await account.get();
+    const targetId = `fcm_${user.$id}_${token.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '')}`;
+    const PROVIDER_ID = '6a6c0163000e309089af'; // Must match FCM provider ID in Appwrite Console
 
-    if (listRes.ok) {
-      const listData = await listRes.json();
-      const existing = listData.targets || [];
-      const alreadyHas = existing.some((t: any) => t.identifier === token);
-      if (alreadyHas) return true;
-    }
-
-    // Register push target with the verified Provider ID "6a6c0163000e309089af"
-    const createRes = await fetch(`${APPWRITE_CONFIG.endpoint}/users/${userId}/targets`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
-        'X-Appwrite-Key': apiKey,
-      },
-      body: JSON.stringify({
-        targetId: ID.unique(),
-        providerType: 'push',
-        identifier: token,
-        providerId: '6a6c0163000e309089af',
-      }),
-    });
-
-    if (createRes.ok) {
-      console.log('Appwrite: Successfully registered Push Target via Server REST API!');
+    try {
+      await account.createPushTarget(targetId, token, PROVIDER_ID);
+      console.log('Appwrite: Successfully registered Push Target securely via Client SDK!');
       return true;
-    } else {
-      console.error('Appwrite: Server Push Target creation error:', await createRes.text());
+    } catch (createErr: any) {
+      if (createErr.code === 409) {
+        // Target already exists
+        return true;
+      }
+      console.error('Appwrite: Client Push Target creation error:', createErr);
     }
   } catch (err) {
-    console.error('Appwrite: Exception registering Push Target on Server:', err);
+    console.error('Appwrite: Exception registering Push Target on Client:', err);
   }
   return false;
 };
@@ -119,52 +96,14 @@ export const updateUserFCMToken = async (email: string, token: string, userAuthI
     const normalizedEmail = (email || '').toLowerCase().trim();
     if (!normalizedEmail) return false;
 
-    // 1. Search user in database
-    let list = await databases.listDocuments(
-      APPWRITE_CONFIG.databaseId,
-      APPWRITE_CONFIG.collections.users,
-      [Query.equal('mail_id', normalizedEmail)]
-    );
-
-    if (list.documents.length === 0) {
-      list = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.users,
-        [Query.equal('email', normalizedEmail)]
-      );
-    }
+    // Securely register the token in Appwrite Auth natively.
+    // We intentionally DO NOT save this token to the public `users` database table
+    // to prevent sensitive token leaks in the Network tab.
+    await registerPushTargetClientSide(token);
     
-    let targetUser = list.documents[0];
-    if (!targetUser) {
-      const allList = await databases.listDocuments(APPWRITE_CONFIG.databaseId, APPWRITE_CONFIG.collections.users, [Query.limit(100)]);
-      targetUser = allList.documents.find((u: any) => 
-         (u.mail_id || '').toLowerCase().trim() === normalizedEmail ||
-         (u.email || '').toLowerCase().trim() === normalizedEmail
-      );
-    }
-
-    if (targetUser) {
-      try {
-        await databases.updateDocument(
-          APPWRITE_CONFIG.databaseId,
-          APPWRITE_CONFIG.collections.users,
-          targetUser.$id,
-          { fcm_token: token }
-        );
-        console.log('Successfully saved FCM token to user DB');
-      } catch (dbErr) {
-        console.warn('Could not update fcm_token attribute on user DB document:', dbErr);
-      }
-
-      const authId = userAuthId || targetUser.user_id || targetUser.userId || targetUser.auth_id || targetUser.$id;
-      if (authId) {
-        await registerPushTargetServerSide(authId, token);
-      }
-      return true;
-    }
-    return false;
+    return true;
   } catch (error) {
-    console.error('Appwrite: Error updating FCM token', error);
+    console.error('Appwrite: Error updating FCM token securely', error);
     return false;
   }
 };

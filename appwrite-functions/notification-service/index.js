@@ -1,4 +1,4 @@
-import { Client, Messaging, Users, ID, Query } from 'node-appwrite';
+import { Client, Messaging, Users, ID, Query, Databases } from 'node-appwrite';
 import { Resend } from 'resend';
 
 /**
@@ -28,7 +28,70 @@ export default async ({ req, res, log, error }) => {
       payload = req.body;
     }
 
-    const { action, users, email, recipientEmail, title, body, subject, content, data, icon, badge, bookingDetails } = payload;
+    let { action, users, email, recipientEmail, title, body, subject, content, data, icon, badge, bookingDetails } = payload;
+
+    if (action === 'notify_role') {
+      const { role, targetInstitution, databaseId, usersCollectionId, notificationsCollectionId } = payload;
+      if (!role || !subject || !content) return res.json({ success: false, message: 'Missing parameters for notify_role' }, 400);
+
+      const databases = new Databases(client);
+      const dbId = databaseId || process.env.VITE_APPWRITE_DATABASE_ID || process.env.APPWRITE_DATABASE_ID;
+      const collId = usersCollectionId || process.env.VITE_USERS_COLLECTION_ID || 'users';
+      const notifCollId = notificationsCollectionId || process.env.VITE_NOTIFICATIONS_COLLECTION_ID || 'notifications';
+
+      if (!dbId || !collId) return res.json({ success: false, message: 'Missing DB configuration' }, 400);
+
+      log(`Fetching users for role ${role} securely on backend...`);
+      // Fetch all users securely on the backend using the Admin API key
+      const usersList = await databases.listDocuments(dbId, collId, [Query.limit(500)]);
+      
+      let targetUsers = usersList.documents.filter(u => {
+        const isRole = u.role === role || (role === 'admin' && u.role === 'super_admin');
+        if (!isRole) return false;
+        if (targetInstitution && role === 'coordinator') {
+          const uInst = (u.institution || '').toLowerCase().trim();
+          const tInst = targetInstitution.toLowerCase().trim();
+          return uInst === tInst || uInst.includes(tInst) || tInst.includes(uInst);
+        }
+        return true;
+      });
+
+      // Fallback for coordinator if none match institution exactly
+      if (targetUsers.length === 0 && role === 'coordinator') {
+        targetUsers = usersList.documents.filter(u => u.role === 'coordinator' || u.role === 'admin' || u.role === 'super_admin');
+      }
+
+      // Record in-app notifications
+      if (notifCollId) {
+        for (const u of targetUsers) {
+          if (u.$id) {
+            try {
+              await databases.createDocument(dbId, notifCollId, ID.unique(), {
+                userId: u.$id,
+                title: subject,
+                message: content,
+                type: "info"
+              });
+            } catch (dbErr) {
+               log(`Could not create in-app notification for ${u.$id}: ${dbErr.message}`);
+            }
+          }
+        }
+      }
+
+      const rawTargets = targetUsers.flatMap(u => [u.mail_id, u.email, u.user_id, u.$id]).filter(Boolean);
+      log(`Role ${role} resolved securely to targets: ${rawTargets.join(', ')}`);
+
+      if (rawTargets.length === 0) {
+        return res.json({ success: true, message: `No targets found for role ${role}` });
+      }
+
+      // Fall-through to 'push' action
+      action = 'push';
+      users = rawTargets;
+      title = subject;
+      body = content;
+    }
 
     if (action === 'push') {
       if (!users || !users.length) {

@@ -59,12 +59,15 @@ export function CoordinatorPortal() {
   const [usersList, setUsersList] = useState<any[]>([]);
 
   useEffect(() => {
-    getAllUsersFromDatabase().then((allUsers) => {
-      // Coordinator can only see users from their institution
-      const coordInst = (user?.institution || "").toLowerCase().trim();
-      setUsersList(allUsers.filter(u => (u.institution || "").toLowerCase().trim() === coordInst));
-    });
-  }, [userAddedSuccess, user?.institution]);
+    // SECURITY PATCH: Only fetch if authorized
+    if (user && (isCoordinatorUser(user) || user.role === "admin")) {
+      getAllUsersFromDatabase().then((allUsers) => {
+        // Coordinator can only see users from their institution
+        const coordInst = (user?.institution || "").toLowerCase().trim();
+        setUsersList(allUsers.filter(u => (u.institution || "").toLowerCase().trim() === coordInst));
+      });
+    }
+  }, [userAddedSuccess, user]);
 
   const handleAddUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

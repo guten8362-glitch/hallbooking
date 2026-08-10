@@ -52,6 +52,10 @@ export function SuperAdminDashboard() {
   }, [realUser, navigate]);
 
   const loadData = async () => {
+    // SECURITY PATCH: Only execute the fetch if the user is authorized.
+    // This prevents eager fetching from leaking data in the network tab before the redirect hook bounces unauthorized users.
+    if (!realUser || !isSuperAdminUser(realUser)) return;
+    
     setLoading(true);
     try {
       const data = await fetchSuperAdminUsers();
@@ -64,8 +68,10 @@ export function SuperAdminDashboard() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (realUser) {
+      loadData();
+    }
+  }, [realUser]);
 
   const handleOpenAudit = () => {
     setAuditLogs(getAuditLogs());

@@ -69,8 +69,12 @@ function Admin() {
   const [usersList, setUsersList] = useState<any[]>([]);
 
   useEffect(() => {
-    getAllUsersFromDatabase().then(setUsersList);
-  }, [userAddedSuccess]);
+    // SECURITY PATCH: Only fetch users if the current user is actually an admin.
+    // This prevents regular users who forcefully navigate here from leaking user data in the Network tab.
+    if (user && isAdminUser(user)) {
+      getAllUsersFromDatabase().then(setUsersList);
+    }
+  }, [userAddedSuccess, user]);
 
   const handleAddUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

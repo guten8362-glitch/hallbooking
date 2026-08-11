@@ -84,10 +84,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Book My Hall" },
+      { title: "VenueX - Book My Space" },
       {
         name: "description",
-        content: "Book shared campus auditoriums in a few simple steps.",
+        content: "VenueX - Book shared campus spaces in a few simple steps.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

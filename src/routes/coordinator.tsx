@@ -28,8 +28,8 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/coordinator")({
   head: () => ({
     meta: [
-      { title: "Coordinator & Approval Portal — Central Hall Booking" },
-      { name: "description", content: "Review, approve, or decline campus auditorium requests." },
+      { title: "Coordinator & Approval Portal — VenueX" },
+      { name: "description", content: "Coordinator workspace to review and forward external booking requests." },
     ],
   }),
   component: CoordinatorPortal,

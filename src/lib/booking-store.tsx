@@ -8,6 +8,7 @@ import { getAllUsersFromDatabase } from "./appwrite/users";
 import { recordAuditLog } from "./services/audit";
 import { getStoredImpersonatedUser } from "./services/impersonation";
 import { APPWRITE_CONFIG } from "./appwrite/constants";
+import { useAuth } from "./auth";
 
 const notifyRole = async (role: string, subject: string, content: string, targetInstitution?: string) => {
   try {
@@ -185,7 +186,18 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [auditoriums, setAuditoriums] = useState<Auditorium[]>([]);
 
+  // SECURITY FIX: Wait for the user to be authenticated before fetching protected collections
+  const { user } = useAuth();
+
   useEffect(() => {
+    // If the user hasn't loaded yet or isn't logged in, clear the store and don't fetch.
+    if (!user) {
+      setBookings([]);
+      setAuditoriums([]);
+      setReady(true);
+      return;
+    }
+
     const initData = async () => {
       try {
         const hallsData = await fetchAuditoriums();

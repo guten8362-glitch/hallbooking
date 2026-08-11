@@ -29,10 +29,10 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Principal Approval Dashboard ΓÇö Central Hall Booking" },
+      { title: "Principal Approval Dashboard — VenueX" },
       {
         name: "description",
-        content: "Principal workspace to approve, review and confirm campus venue requests.",
+        content: "Review and approve internal and external auditorium booking requests.",
       },
       { property: "og:title", content: "Principal Approval Dashboard" },
       {

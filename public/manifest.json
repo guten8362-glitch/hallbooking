@@ -1,11 +1,11 @@
 {
-  "name": "Book My Hall",
-  "short_name": "BMH",
+  "name": "VenueX",
+  "short_name": "VenueX",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
-  "description": "Book shared campus auditoriums in a few simple steps.",
+  "description": "VenueX - Book My Space",
   "icons": [
     {
       "src": "/logo.svg",

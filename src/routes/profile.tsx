@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
+import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageTitle, Row, Surface } from "@/components/ui-kit";
 import { useBookings } from "@/lib/booking-store";
@@ -25,6 +26,15 @@ function Profile() {
   const { user } = useAuth();
   const name = user?.name || "Campus User";
   const institution = user?.institution || "—";
+  const navigate = useNavigate();
+
+  // If user is an organizer, they should use the dedicated organizer portal 
+  // which has the images, reminders, and full details modal they need.
+  useEffect(() => {
+    if (user?.role === "organizer") {
+      navigate({ to: "/organizer" });
+    }
+  }, [user, navigate]);
 
   const isAdminOrCoordinator = user?.role === "admin" || user?.role === "super_admin" || user?.role === "coordinator";
 

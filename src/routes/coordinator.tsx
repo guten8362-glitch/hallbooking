@@ -409,7 +409,7 @@ export function CoordinatorPortal() {
             displayedBookings.map((b, i) => {
               const stageInfo = getStageInfo(b.stage);
               const hall = getAuditorium(b.auditoriumId);
-              const hallDisplayName = hall?.name || (b as any).hallName || (b as any).auditoriumName || "Campus Auditorium";
+              const hallDisplayName = hall?.name || (b as any).auditoriumName || (b as any).hallName || "Unknown Venue";
               return (
                 <Surface key={b.id} delay={i * 50} className="p-6 sm:p-7">
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-4">

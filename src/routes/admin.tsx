@@ -458,7 +458,7 @@ function Admin() {
         {filteredBookings.map((b, i) => {
           const stageInfo = getStageInfo(b.stage);
           const hall = getAuditorium(b.auditoriumId);
-          const hallDisplayName = hall?.name || (b as any).hallName || (b as any).auditoriumName || "Campus Auditorium";
+          const hallDisplayName = hall?.name || (b as any).auditoriumName || (b as any).hallName || "Unknown Venue";
 
           return (
             <Surface key={b.id} delay={i * 60} className="p-6 sm:p-7">

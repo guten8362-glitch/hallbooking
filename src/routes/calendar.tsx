@@ -236,10 +236,10 @@ function CalendarPage() {
                             ? "bg-red-600 text-white border-red-700 dark:bg-red-700"
                             : "bg-amber-500/90 text-white border-amber-600"
                         )}
-                        title={`${aud?.name || "Venue"} (${formatTime(b.startTime)}-${formatTime(b.endTime)}): ${b.eventName || b.coordinator}`}
+                        title={`${(b as any).auditoriumName || aud?.name || "Venue"} (${formatTime(b.startTime)}-${formatTime(b.endTime)}): ${b.eventName || b.coordinator}`}
                       >
                         <div className="truncate font-bold">
-                          {aud?.name || "Booked Event"}
+                          {(b as any).auditoriumName || aud?.name || "Booked Event"}
                         </div>
                         <div className="truncate text-[0.66rem] opacity-90">
                           {formatTime(b.startTime) || "Booked"} · {b.coordinator || "Event"}
@@ -307,7 +307,7 @@ function CalendarPage() {
                           Auditorium:
                         </span>
                         <span className="text-[0.88rem] font-extrabold text-primary">
-                          {aud?.name || "Backside Auditorium"}
+                          {(b as any).auditoriumName || aud?.name || "Backside Auditorium"}
                         </span>
                       </div>
                       <h4 className="text-[1.05rem] font-bold text-foreground leading-snug">

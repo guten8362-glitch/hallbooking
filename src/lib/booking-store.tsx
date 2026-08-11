@@ -223,6 +223,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             id: doc.$id,
             createdAt: doc.createdAt || doc.$createdAt,
             auditoriumId: (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.$id : (doc.hallId || extra.auditoriumId),
+            auditoriumName: (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.name : (doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName),
             institution: doc.collegeId || extra.institution,
             department: doc.department || extra.department,
             eventName: doc.eventName || extra.eventName,
@@ -365,7 +366,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           return { id, name: id, capacity: 0, tagline: "", availability: "Available", image: ["/logos/logo4.jpg"], location: "Campus Venue", facilities: [], about: "" };
         }
 
-        return { id, name: "Campus Auditorium", capacity: 0, tagline: "", availability: "Available", image: ["/logos/logo4.jpg"], location: "Campus Venue", facilities: [], about: "" };
+        // Return empty name so the UI knows it wasn't found and can fallback to the booking's saved auditoriumName
+        return { id, name: "", capacity: 0, tagline: "", availability: "Available", image: ["/logos/logo4.jpg"], location: "Campus Venue", facilities: [], about: "" };
       },
       submitDraft: async (userRole?: string, userTeam?: string, explicitData?: BookingDraft, userId?: string) => {
         const data = explicitData || draft;

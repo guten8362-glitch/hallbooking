@@ -145,7 +145,7 @@ function Profile() {
                   <div>
                     <h4 className="font-semibold text-sm">{b.eventName || "Auditorium Request"}</h4>
                     <p className="text-xs text-muted-foreground">
-                      {aud?.name || "Campus Auditorium"} • {b.date || "N/A"} • {b.institution || "MVIT"}
+                      {(b as any).auditoriumName || aud?.name || "Unknown Venue"} • {b.date || "N/A"} • {b.institution || "MVIT"}
                     </p>
                   </div>
                   <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${

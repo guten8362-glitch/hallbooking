@@ -218,12 +218,24 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           } catch {
             // It wasn't JSON, meaning it might be an older legacy string, keep it as is.
           }
+          const mappedId = (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.$id : (doc.hallId || extra.auditoriumId);
+          const realHall = hallsData.find(h => h.id === mappedId || (h.name || "").toLowerCase() === String(mappedId).toLowerCase());
+          
+          let resolvedName = realHall?.name;
+          if (!resolvedName) {
+            const clean = String(mappedId).toLowerCase().trim();
+            if (clean.includes("av") || clean.includes("audio")) resolvedName = "Audio Visual (AV) Room";
+            else if (clean.includes("conf") || clean.includes("central")) resolvedName = "Central Conference Hall";
+            else if (clean.includes("ground")) resolvedName = "Ground Floor Auditorium";
+            else if (clean.includes("back")) resolvedName = "Backside Auditorium";
+          }
+
           return {
             ...doc,
             id: doc.$id,
             createdAt: doc.createdAt || doc.$createdAt,
-            auditoriumId: (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.$id : (doc.hallId || extra.auditoriumId),
-            auditoriumName: (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.name : (doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName),
+            auditoriumId: mappedId,
+            auditoriumName: (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.name : (doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName || resolvedName),
             institution: doc.collegeId || extra.institution,
             department: doc.department || extra.department,
             eventName: doc.eventName || extra.eventName,

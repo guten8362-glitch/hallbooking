@@ -178,6 +178,8 @@ interface Store {
   getAuditorium: (id?: string) => Auditorium | undefined;
 }
 
+import { Query } from "appwrite";
+
 const StoreContext = createContext<Store | null>(null);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
@@ -203,7 +205,13 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         const hallsData = await fetchAuditoriums();
         setAuditoriums(hallsData);
 
-        const bookingsData = await listBookings();
+        // SECURITY FIX: If the user is a standard user, only fetch their own bookings to prevent data leakage.
+        const queries = [];
+        if (user.role === "user") {
+          queries.push(Query.equal("requesterId", user.$id || user.id));
+        }
+
+        const bookingsData = await listBookings(queries);
         // Map Appwrite documents to Booking interface
         const mappedBookings = bookingsData.map((doc: any) => {
           let extra: any = {};
@@ -446,6 +454,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         }
       },
       advance: async (id, stage, patch = {}) => {
+        // SECURITY FIX: Prevent normal users from advancing or modifying booking stages
+        if (!user || user.role === 'user') {
+          throw new Error("Unauthorized: Only administrators can modify booking status.");
+        }
+
         // Optimistic UI update
         setBookings((prev) =>
           prev.map((b) => (b.id === id ? { ...b, ...patch, stage } : b)),
@@ -566,6 +579,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         }
       },
       remove: async (id) => {
+        // SECURITY FIX: Prevent normal users from deleting bookings
+        if (!user || user.role === 'user') {
+          throw new Error("Unauthorized: Only administrators can delete bookings.");
+        }
+
         // Optimistic UI update
         setBookings((prev) => prev.filter((b) => b.id !== id));
 

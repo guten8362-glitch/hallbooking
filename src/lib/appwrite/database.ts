@@ -2,12 +2,12 @@ import { ID, Query } from 'appwrite';
 import { account, databases } from './client';
 import { APPWRITE_CONFIG } from './constants';
 
-export const listBookings = async () => {
+export const listBookings = async (customQueries: string[] = []) => {
   try {
     const response = await databases.listDocuments(
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.collections.bookings,
-      [Query.orderDesc('$createdAt'), Query.limit(500)]
+      [Query.orderDesc('$createdAt'), Query.limit(500), ...customQueries]
     );
     return response.documents;
   } catch (error) {
@@ -17,7 +17,7 @@ export const listBookings = async () => {
       const retryResponse = await databases.listDocuments(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.collections.bookings,
-        [Query.orderDesc('$createdAt'), Query.limit(500)]
+        [Query.orderDesc('$createdAt'), Query.limit(500), ...customQueries]
       );
       return retryResponse.documents;
     } catch (retryError) {

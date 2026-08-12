@@ -197,9 +197,9 @@ function LoginPage() {
         aria-hidden="true"
       >
         <div 
-          className="absolute w-full h-full opacity-20 pointer-events-none transition-transform duration-300 ease-out"
+          className="absolute w-[120%] h-[120%] -top-[10%] -left-[10%] opacity-20 pointer-events-none transition-transform duration-300 ease-out"
           style={{
-            background: "radial-gradient(ellipse at center, var(--bms-primary-red) 0%, var(--bms-gradient-purple) 60%, transparent 100%)",
+            background: "linear-gradient(135deg, var(--bms-primary-red) 0%, var(--bms-gradient-purple) 100%)",
             transform: "translate3d(calc(var(--mx) * 20px), calc(var(--my) * 20px), 0px)",
             willChange: "transform",
           }}

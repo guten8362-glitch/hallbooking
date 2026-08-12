@@ -229,8 +229,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           const mappedId = (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.$id : (doc.hallId || extra.auditoriumId);
           const realHall = hallsData.find(h => h.id === mappedId || (h.name || "").toLowerCase() === String(mappedId).toLowerCase());
           
-          let resolvedName = realHall?.name;
+          let resolvedName = realHall?.name || "";
+          
+          // Fallback if hall is missing due to Appwrite permissions or deletion
           if (!resolvedName) {
+            resolvedName = ((typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.name : null) 
+                           || doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName || `Unknown Hall (${mappedId})`;
             const clean = String(mappedId).toLowerCase().trim();
             if (clean.includes("av") || clean.includes("audio")) resolvedName = "Audio Visual (AV) Room";
             else if (clean.includes("conf") || clean.includes("central")) resolvedName = "Central Conference Hall";

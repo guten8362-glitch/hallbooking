@@ -197,12 +197,10 @@ function LoginPage() {
         aria-hidden="true"
       >
         <div 
-          className="absolute w-[600px] h-[600px] rounded-full blur-[120px] opacity-25 pointer-events-none transition-transform duration-300 ease-out"
+          className="absolute w-full h-full opacity-20 pointer-events-none transition-transform duration-300 ease-out"
           style={{
-            background: "radial-gradient(circle, var(--bms-primary-red) 0%, var(--bms-gradient-purple) 60%, transparent 100%)",
-            transform: "translate3d(calc(var(--mx) * 100px), calc(var(--my) * 100px), 0px)",
-            top: "calc(50% - 300px)",
-            left: "calc(50% - 300px)",
+            background: "radial-gradient(ellipse at center, var(--bms-primary-red) 0%, var(--bms-gradient-purple) 60%, transparent 100%)",
+            transform: "translate3d(calc(var(--mx) * 20px), calc(var(--my) * 20px), 0px)",
             willChange: "transform",
           }}
         />
@@ -288,6 +286,35 @@ function LoginPage() {
         />
 
         <Surface className="p-4 sm:p-5 backdrop-blur-2xl bg-card/95 shadow-2xl border-white/40 dark:border-white/10">
+          <form onSubmit={submitEmail} className="mb-4">
+            <div className="space-y-3">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <input
+                  type="email"
+                  placeholder="Enter your email to login"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-3 text-[0.95rem] font-medium outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading || !email}
+                className="flex w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 py-3 text-[0.95rem] font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.99] disabled:opacity-50"
+              >
+                {loading ? "Logging in..." : "Continue with Email"}
+              </button>
+            </div>
+          </form>
+
+          <div className="relative mb-4 flex items-center">
+            <div className="flex-grow border-t border-border"></div>
+            <span className="bg-card px-3 text-xs text-muted-foreground">OR</span>
+            <div className="flex-grow border-t border-border"></div>
+          </div>
+
           <button
             type="button"
             onClick={submitGoogle}

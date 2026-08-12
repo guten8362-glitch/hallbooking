@@ -208,7 +208,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         // SECURITY FIX: If the user is a standard user, only fetch their own bookings to prevent data leakage.
         const queries = [];
         if (user.role === "user") {
-          queries.push(Query.equal("requesterId", user.$id || user.id));
+          queries.push(Query.equal("requesterId", user.$id || (user as any).id));
         }
 
         const bookingsData = await listBookings(queries);
@@ -346,6 +346,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       draft,
       setDraft: setDraftState,
       bookings,
+      auditoriums,
       ready,
       getAuditorium: (id?: string) => {
         if (!id) return undefined;

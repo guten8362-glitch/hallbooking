@@ -235,7 +235,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             id: doc.$id,
             createdAt: doc.createdAt || doc.$createdAt,
             auditoriumId: mappedId,
-            auditoriumName: (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.name : (doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName || resolvedName),
+            auditoriumName: ((typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.name : null) || doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName || resolvedName || `[DEBUG] ID: ${mappedId} | HallsLoaded: ${hallsData.length}`,
             institution: doc.collegeId || extra.institution,
             department: doc.department || extra.department,
             eventName: doc.eventName || extra.eventName,

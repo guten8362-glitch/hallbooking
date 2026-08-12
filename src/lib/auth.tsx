@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { ID } from "appwrite";
-import { getCurrentUser, logoutUser, loginWithEmail } from "./appwrite/account";
+import { getCurrentUser, logoutUser, getCurrentSession } from "./appwrite/account";
 import { updateUserFCMToken, getAllUsersFromDatabase, addUserToDatabase } from "./appwrite/users";
 import { account } from "./appwrite/client";
 import { requestFCMToken } from "./firebase";
@@ -192,13 +192,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Error fetching DB users during login:", dbErr);
       }
 
-      // 2. Attempt Appwrite session login as primary auth provider
+      // 2. We no longer use loginWithEmail (hardcoded password) here.
+      // Magic Link handles it completely differently.
+      // This login() function is now only used as a fallback if the user 
+      // already has an active session but needs to sync state,
+      // or if we are doing a mock login and they allowed the users DB to be read.
+      
       let appwriteUser: User | null = null;
       try {
-        await loginWithEmail(cleanEmail, password);
         appwriteUser = (await getCurrentUser()) as User | null;
       } catch (appwriteErr) {
-        console.warn("Appwrite session login failed, falling back to DB record:", appwriteErr);
+        console.warn("Appwrite user fetch failed:", appwriteErr);
       }
 
       // 3. If user wasn't in DB or Appwrite Auth:

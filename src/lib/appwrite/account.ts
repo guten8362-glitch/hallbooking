@@ -17,7 +17,7 @@ export const loginWithMagicLink = async (email: string) => {
     } catch {
       // No active session to delete
     }
-    const session = await account.createMagicURLSession(
+    const session = await account.createMagicURLToken(
       ID.unique(),
       email,
       `${window.location.origin}/login`

@@ -149,24 +149,27 @@ function LoginPage() {
     };
   }, []);
 
+  const { userId, secret } = Route.useSearch();
+  const [magicLinkLoading, setMagicLinkLoading] = useState(!!(userId && secret));
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const isConsumingMagicLink = useRef(false);
+
   useEffect(() => {
-    if (ready && user) {
+    if (ready && user && !magicLinkLoading) {
       sessionStorage.setItem("justLoggedIn", "true");
       const targetPath = getDefaultRouteForUser(user);
       navigate({ to: targetPath });
     }
-  }, [ready, user, navigate]);
-
-  const { userId, secret } = Route.useSearch();
-  const [magicLinkLoading, setMagicLinkLoading] = useState(!!(userId && secret));
+  }, [ready, user, navigate, magicLinkLoading]);
 
   useEffect(() => {
-    if (userId && secret) {
+    if (userId && secret && !isConsumingMagicLink.current) {
+      isConsumingMagicLink.current = true;
       const finishMagicLogin = async () => {
         try {
           await account.updateMagicURLSession(userId, secret);
-          // Wait for auth context to re-evaluate or force reload
-          window.location.href = window.location.origin + "/login";
+          // Reload without query params so it enters the standard auth flow
+          window.location.replace(window.location.pathname);
         } catch (err: any) {
           console.error("Magic link auth failed:", err);
           setError(err.message || "Invalid or expired magic link.");
@@ -185,8 +188,6 @@ function LoginPage() {
       </AppShell>
     );
   }
-
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const submitEmail = async (e: React.FormEvent) => {
     e.preventDefault();

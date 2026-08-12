@@ -9,7 +9,22 @@ import { ID } from "appwrite";
 import { Mail, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type LoginSearch = {
+  userId?: string;
+  secret?: string;
+  expire?: string;
+  error?: string;
+};
+
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): LoginSearch => {
+    return {
+      userId: search.userId as string | undefined,
+      secret: search.secret as string | undefined,
+      expire: search.expire as string | undefined,
+      error: search.error as string | undefined,
+    };
+  },
   component: LoginPage,
 });
 
@@ -142,40 +157,48 @@ function LoginPage() {
     }
   }, [ready, user, navigate]);
 
-  if (!ready) {
+  const { userId, secret } = Route.useSearch();
+  const [magicLinkLoading, setMagicLinkLoading] = useState(!!(userId && secret));
+
+  useEffect(() => {
+    if (userId && secret) {
+      const finishMagicLogin = async () => {
+        try {
+          await account.updateMagicURLSession(userId, secret);
+          // Wait for auth context to re-evaluate or force reload
+          window.location.href = window.location.origin + "/login";
+        } catch (err: any) {
+          console.error("Magic link auth failed:", err);
+          setError(err.message || "Invalid or expired magic link.");
+          setMagicLinkLoading(false);
+        }
+      };
+      finishMagicLogin();
+    }
+  }, [userId, secret]);
+
+  if (!ready || magicLinkLoading) {
     return (
       <AppShell>
         <div className="shimmer mx-auto mt-20 h-64 max-w-md rounded-2xl" />
+        {magicLinkLoading && <p className="text-center mt-4 text-muted-foreground animate-pulse">Verifying secure link...</p>}
       </AppShell>
     );
   }
+
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const submitEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const success = await login(email);
-      if (success) {
-        sessionStorage.setItem("justLoggedIn", "true");
-        // Read updated user from localStorage to get the exact role
-        let loggedInUser: any = null;
-        try {
-          const saved = localStorage.getItem("bms_user");
-          if (saved) loggedInUser = JSON.parse(saved);
-        } catch {
-          /* ignore */
-        }
-        
-        const targetPath = getDefaultRouteForUser(loggedInUser || user);
-
-        navigate({ to: targetPath, replace: true });
-      } else {
-        setError("User not found");
-      }
+      const { loginWithMagicLink } = await import("@/lib/appwrite/account");
+      await loginWithMagicLink(email);
+      setMagicLinkSent(true);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "User not found");
+      setError(err.message || "Failed to send magic link. Please check your email.");
     } finally {
       setLoading(false);
     }
@@ -297,15 +320,22 @@ function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-3 text-[0.95rem] font-medium outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                   required
+                  disabled={magicLinkSent}
                 />
               </div>
-              <button
-                type="submit"
-                disabled={loading || !email}
-                className="flex w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 py-3 text-[0.95rem] font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.99] disabled:opacity-50"
-              >
-                {loading ? "Logging in..." : "Continue with Email"}
-              </button>
+              {magicLinkSent ? (
+                <div className="w-full rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-3 text-center text-[0.9rem] font-medium text-green-600 dark:text-green-400">
+                  ✅ Secure login link sent to your email! Please check your inbox.
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={loading || !email}
+                  className="flex w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 py-3 text-[0.95rem] font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.99] disabled:opacity-50"
+                >
+                  {loading ? "Sending..." : "Continue with Email"}
+                </button>
+              )}
             </div>
           </form>
 

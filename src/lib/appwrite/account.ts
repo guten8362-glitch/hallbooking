@@ -10,27 +10,22 @@ export const loginWithGoogle = () => {
   );
 };
 
-export const loginWithEmail = async (email: string, password?: string) => {
-  const pass = password || "12345678";
+export const loginWithMagicLink = async (email: string) => {
   try {
     try {
       await account.deleteSession('current');
     } catch {
       // No active session to delete
     }
-    const session = await account.createEmailPasswordSession(email, pass);
+    const session = await account.createMagicURLSession(
+      ID.unique(),
+      email,
+      `${window.location.origin}/login`
+    );
     return session;
   } catch (error: any) {
-    console.warn('Appwrite: Email password session attempt:', error?.message || error);
-    try {
-      const userId = ID.unique();
-      await account.create(userId, email, pass, email.split('@')[0] || 'User');
-      const session = await account.createEmailPasswordSession(email, pass);
-      return session;
-    } catch (createErr) {
-      console.error('Appwrite: Account create/login error:', createErr);
-      throw createErr;
-    }
+    console.error('Appwrite: Magic Link error:', error);
+    throw error;
   }
 };
 

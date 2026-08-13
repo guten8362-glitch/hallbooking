@@ -226,15 +226,26 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           } catch {
             // It wasn't JSON, meaning it might be an older legacy string, keep it as is.
           }
-          const mappedId = (typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.$id : (doc.hallId || extra.auditoriumId);
+          let mappedId = extra.auditoriumId;
+          let mappedHallName = null;
+
+          if (Array.isArray(doc.hallId) && doc.hallId.length > 0) {
+            mappedId = doc.hallId[0].$id;
+            mappedHallName = doc.hallId[0].name;
+          } else if (typeof doc.hallId === 'object' && doc.hallId !== null) {
+            mappedId = doc.hallId.$id;
+            mappedHallName = doc.hallId.name;
+          } else if (typeof doc.hallId === 'string' && doc.hallId.length > 0) {
+            mappedId = doc.hallId;
+          }
+
           const realHall = hallsData.find(h => h.id === mappedId || (h.name || "").toLowerCase() === String(mappedId).toLowerCase());
           
           let resolvedName = realHall?.name || "";
           
           // Fallback if hall is missing due to Appwrite permissions or deletion
           if (!resolvedName) {
-            resolvedName = ((typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.name : null) 
-                           || doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName || `Unknown Venue`;
+            resolvedName = mappedHallName || doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName || `Unknown Venue`;
             const clean = String(mappedId).toLowerCase().trim();
             if (clean.includes("av") || clean.includes("audio")) resolvedName = "Audio Visual (AV) Room";
             else if (clean.includes("conf") || clean.includes("central")) resolvedName = "Central Conference Hall";
@@ -247,7 +258,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             id: doc.$id,
             createdAt: doc.createdAt || doc.$createdAt,
             auditoriumId: mappedId,
-            auditoriumName: ((typeof doc.hallId === 'object' && doc.hallId !== null) ? doc.hallId.name : null) || doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName || resolvedName || `[DEBUG] ID: ${mappedId} | HallsLoaded: ${hallsData.length}`,
+            auditoriumName: mappedHallName || doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName || resolvedName,
             institution: doc.collegeId || extra.institution,
             department: doc.department || extra.department,
             eventName: doc.eventName || extra.eventName,
@@ -284,10 +295,24 @@ export function BookingProvider({ children }: { children: ReactNode }) {
               doc.remarks = "";
             }
           } catch {}
+          let mappedId = extra.auditoriumId;
+          let mappedHallName = null;
+
+          if (Array.isArray(doc.hallId) && doc.hallId.length > 0) {
+            mappedId = doc.hallId[0].$id;
+            mappedHallName = doc.hallId[0].name;
+          } else if (typeof doc.hallId === 'object' && doc.hallId !== null) {
+            mappedId = doc.hallId.$id;
+            mappedHallName = doc.hallId.name;
+          } else if (typeof doc.hallId === 'string' && doc.hallId.length > 0) {
+            mappedId = doc.hallId;
+          }
+
           const newBooking = {
             ...doc, 
             id: doc.$id, 
-            auditoriumId: doc.hallId || extra.auditoriumId, 
+            auditoriumId: mappedId,
+            auditoriumName: mappedHallName || doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName,
             institution: doc.collegeId || extra.institution, 
             department: doc.department || extra.department,
             eventName: doc.eventName || extra.eventName,
@@ -313,10 +338,24 @@ export function BookingProvider({ children }: { children: ReactNode }) {
               doc.remarks = "";
             }
           } catch {}
+          let mappedId = extra.auditoriumId;
+          let mappedHallName = null;
+
+          if (Array.isArray(doc.hallId) && doc.hallId.length > 0) {
+            mappedId = doc.hallId[0].$id;
+            mappedHallName = doc.hallId[0].name;
+          } else if (typeof doc.hallId === 'object' && doc.hallId !== null) {
+            mappedId = doc.hallId.$id;
+            mappedHallName = doc.hallId.name;
+          } else if (typeof doc.hallId === 'string' && doc.hallId.length > 0) {
+            mappedId = doc.hallId;
+          }
+
           const updatedBooking = {
             ...doc, 
             id: doc.$id, 
-            auditoriumId: doc.hallId || extra.auditoriumId, 
+            auditoriumId: mappedId,
+            auditoriumName: mappedHallName || doc.hallName || doc.auditoriumName || extra.auditoriumName || extra.hallName, 
             institution: doc.collegeId || extra.institution, 
             department: doc.department || extra.department,
             eventName: doc.eventName || extra.eventName,

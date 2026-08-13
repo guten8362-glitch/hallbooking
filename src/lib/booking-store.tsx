@@ -133,6 +133,7 @@ export interface BookingDraft {
   rejectionReason?: string;
   approvedBy?: string;
   requesterId?: string;
+  selectedDates?: string[];
 }
 
 export interface Booking extends BookingDraft {
@@ -164,6 +165,7 @@ export const emptyDraft = (auditoriumId = ""): BookingDraft => ({
   eventImage: "",
   rejectionCategory: "",
   rejectionReason: "",
+  selectedDates: [],
 });
 
 interface Store {

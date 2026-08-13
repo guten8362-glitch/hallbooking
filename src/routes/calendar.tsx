@@ -70,6 +70,9 @@ function CalendarPage() {
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
 
   const isDateInRange = (b: any, targetDateStr: string) => {
+    if (b.selectedDates && Array.isArray(b.selectedDates) && b.selectedDates.length > 0) {
+      return b.selectedDates.includes(targetDateStr);
+    }
     if (b.fromDate) {
       try {
         const target = new Date(targetDateStr + "T00:00:00");

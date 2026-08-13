@@ -63,34 +63,45 @@ function BookingForm() {
     coordinator: user?.name || "",
     fromDate: todayStr,
     toDate: todayStr,
+    selectedDates: [todayStr],
     date: formatDate(todayStr),
     startTime: "09:00",
     endTime: "11:00",
   }));
 
-  const blockedDates = useMemo(() => {
-    const dates = new Set<string>();
+  const bookedSlots = useMemo(() => {
+    const slots: { date: string, start: string, end: string }[] = [];
     confirmedBookings.forEach(b => {
-      let from = b.eventDate ? b.eventDate.split('T')[0] : "";
-      let to = from;
+      let dates: string[] = [];
       try {
         const remarks = JSON.parse(b.remarks || "{}");
-        if (remarks.fromDate) from = remarks.fromDate;
-        if (remarks.toDate) to = remarks.toDate;
-      } catch {}
-
-      if (from && to) {
-        const d = new Date(from);
-        const endD = new Date(to);
-        let safety = 0;
-        while (d <= endD && safety < 365) {
-          dates.add(d.toISOString().split('T')[0]);
-          d.setDate(d.getDate() + 1);
-          safety++;
+        if (remarks.selectedDates && Array.isArray(remarks.selectedDates)) {
+          dates = remarks.selectedDates;
+        } else if (remarks.fromDate && remarks.toDate) {
+          // Fallback for old bookings
+          const d = new Date(remarks.fromDate);
+          const endD = new Date(remarks.toDate);
+          let safety = 0;
+          while (d <= endD && safety < 365) {
+            dates.push(d.toISOString().split('T')[0]);
+            d.setDate(d.getDate() + 1);
+            safety++;
+          }
         }
+      } catch {}
+      if (dates.length === 0 && b.eventDate) {
+        dates.push(b.eventDate.split('T')[0]);
       }
+
+      dates.forEach(date => {
+        slots.push({
+          date,
+          start: b.startTime || "00:00",
+          end: b.endTime || "23:59",
+        });
+      });
     });
-    return Array.from(dates);
+    return slots;
   }, [confirmedBookings]);
 
   const [error, setError] = useState("");
@@ -117,6 +128,7 @@ function BookingForm() {
       coordinator: f.coordinator || user?.name || "",
       fromDate: f.fromDate || draft.fromDate || todayStr,
       toDate: f.toDate || draft.toDate || todayStr,
+      selectedDates: f.selectedDates || draft.selectedDates || [todayStr],
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auditorium.id, user?.institution]);
@@ -149,16 +161,20 @@ function BookingForm() {
       setError("Please enter Event Purpose.");
       return;
     }
-    if (!form.fromDate || !form.toDate) {
-      setError("Please select valid Event Dates (From – To).");
+    if (!form.selectedDates || form.selectedDates.length === 0) {
+      setError("Please select at least one Event Date.");
+      return;
+    }
+    if (form.selectedDates.length > 6) {
+      setError("You can only select up to 6 dates for a single booking.");
       return;
     }
     if (!form.startTime || !form.endTime) {
       setError("Please specify Start and End Times.");
       return;
     }
-    if (form.fromDate === form.toDate && form.startTime >= form.endTime) {
-      setError("End Time must be after Start Time for same-day bookings.");
+    if (form.startTime >= form.endTime) {
+      setError("End Time must be after Start Time.");
       return;
     }
     if (!form.participants || parseInt(form.participants) < 1) {
@@ -170,19 +186,25 @@ function BookingForm() {
       return;
     }
 
-    const d = new Date(form.fromDate);
-    const endD = new Date(form.toDate);
-    let safety = 0;
-    while (d <= endD && safety < 365) {
-      if (blockedDates.includes(d.toISOString().split('T')[0])) {
-        setError("One or more dates in your selected range is already booked by another event.");
-        return;
+    // Check conflicts
+    for (const date of form.selectedDates) {
+      const conflicts = bookedSlots.filter(slot => slot.date === date);
+      for (const slot of conflicts) {
+        // Overlap condition: start1 < end2 AND end1 > start2
+        if (form.startTime < slot.end && form.endTime > slot.start) {
+          setError(`The auditorium is already booked on ${date} from ${format12h(slot.start)} to ${format12h(slot.end)}. Please choose a different time or date.`);
+          return;
+        }
       }
-      d.setDate(d.getDate() + 1);
-      safety++;
     }
 
-    const formattedDateRange = formatDate(form.fromDate, form.toDate);
+    let formattedDateRange = "";
+    if (form.selectedDates.length === 1) {
+      formattedDateRange = formatDate(form.selectedDates[0]);
+    } else {
+      formattedDateRange = `${form.selectedDates.length} Dates: ${formatDate(form.selectedDates[0])} to ${formatDate(form.selectedDates[form.selectedDates.length - 1])}`;
+    }
+    
     const finalData = { ...form, date: formattedDateRange, auditoriumId: auditorium.id };
     
     setSubmitting(true);
@@ -260,8 +282,10 @@ function BookingForm() {
               className="h-12 w-full flex items-center justify-between rounded-xl border border-border bg-card px-4 text-[0.92rem] font-medium outline-none transition-all hover:border-primary/50 hover:shadow-xs focus:ring-4 focus:ring-primary/10"
             >
               <span className="text-foreground">
-                {form.fromDate
-                  ? formatDate(form.fromDate, form.toDate)
+                {form.selectedDates && form.selectedDates.length > 0
+                  ? form.selectedDates.length === 1
+                    ? formatDate(form.selectedDates[0])
+                    : `${form.selectedDates.length} Dates Selected`
                   : "Select Event Dates"}
               </span>
               <CalendarIcon className="h-4.5 w-4.5 text-primary shrink-0" />
@@ -336,17 +360,16 @@ function BookingForm() {
       {/* Calendar Picker Modal */}
       {showCalendarModal && (
         <CalendarPickerModal
-          fromDate={form.fromDate}
-          toDate={form.toDate}
+          selectedDates={form.selectedDates}
           minDate={todayStr}
-          blockedDates={blockedDates}
-          onChange={(newFrom, newTo) => {
+          onChange={(dates) => {
             setError("");
+            const sortedDates = [...dates].sort();
             setForm((f) => ({
               ...f,
-              fromDate: newFrom,
-              toDate: newTo,
-              date: formatDate(newFrom, newTo),
+              selectedDates: sortedDates,
+              fromDate: sortedDates[0] || "",
+              toDate: sortedDates[sortedDates.length - 1] || "",
             }));
           }}
           onClose={() => setShowCalendarModal(false)}

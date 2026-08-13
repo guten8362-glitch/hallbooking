@@ -1,13 +1,11 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, X, Check, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CalendarRangePickerProps {
-  fromDate?: string; // YYYY-MM-DD
-  toDate?: string;   // YYYY-MM-DD
-  onChange: (fromDate: string, toDate: string) => void;
+  selectedDates?: string[]; // Array of YYYY-MM-DD
+  onChange: (dates: string[]) => void;
   minDate?: string;
-  blockedDates?: string[];
   onClose?: () => void;
 }
 
@@ -17,18 +15,18 @@ const MONTH_NAMES = [
 ];
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-export function CalendarPickerModal({ fromDate = "", toDate = "", onChange, minDate, blockedDates = [], onClose }: CalendarRangePickerProps) {
-  const [mode, setMode] = useState<"single" | "multiple">(fromDate === toDate ? "single" : "multiple");
-  const [clickStep, setClickStep] = useState<1 | 2>(1);
 
+export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onClose }: CalendarRangePickerProps) {
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
-  const [selFromDate, setSelFromDate] = useState(() => fromDate || todayStr);
-  const [selToDate, setSelToDate] = useState(() => toDate || fromDate || todayStr);
+  const [localDates, setLocalDates] = useState<string[]>(() => {
+    if (selectedDates.length > 0) return [...selectedDates];
+    return [todayStr];
+  });
 
   const initialViewDate = useMemo(() => {
-    return selFromDate ? new Date(selFromDate + "T00:00:00") : new Date();
-  }, [selFromDate]);
+    return localDates.length > 0 ? new Date(localDates[0] + "T00:00:00") : new Date();
+  }, [localDates]);
 
   const [currentMonth, setCurrentMonth] = useState(() => initialViewDate.getMonth());
   const [currentYear, setCurrentYear] = useState(() => initialViewDate.getFullYear());
@@ -58,7 +56,6 @@ export function CalendarPickerModal({ fromDate = "", toDate = "", onChange, minD
     }
   };
 
-  // Days matrix for current month
   const calendarDays = useMemo(() => {
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -73,76 +70,41 @@ export function CalendarPickerModal({ fromDate = "", toDate = "", onChange, minD
 
       d.setHours(0, 0, 0, 0);
       const isPast = d < minDateObj;
-      const isBlocked = blockedDates.includes(dateStr);
-      const isDisabled = isPast || isBlocked;
+      const isDisabled = isPast;
       const isToday = dateStr === todayStr;
 
-      const isStart = dateStr === selFromDate;
-      const isEnd = dateStr === selToDate;
-      const isRange = selFromDate && selToDate && dateStr >= selFromDate && dateStr <= selToDate;
+      const isSelected = localDates.includes(dateStr);
 
       days.push({
         day,
         dateStr,
         isDisabled,
         isToday,
-        isStart,
-        isEnd,
-        isRange,
+        isSelected,
       });
     }
 
     return { firstDayOfMonth, days };
-  }, [currentYear, currentMonth, minDateObj, todayStr, selFromDate, selToDate, blockedDates]);
+  }, [currentYear, currentMonth, minDateObj, todayStr, localDates]);
 
   const handleSelectDay = (dateStr: string) => {
-    if (mode === "single") {
-      setSelFromDate(dateStr);
-      setSelToDate(dateStr);
-    } else {
-      if (clickStep === 1) {
-        setSelFromDate(dateStr);
-        setSelToDate(dateStr);
-        setClickStep(2);
+    setLocalDates((prev) => {
+      if (prev.includes(dateStr)) {
+        // Deselect
+        return prev.filter((d) => d !== dateStr);
       } else {
-        if (dateStr < selFromDate) {
-          setSelFromDate(dateStr);
-          setSelToDate(dateStr);
-        } else {
-          setSelToDate(dateStr);
-          setClickStep(1);
+        // Select, but limit to 6
+        if (prev.length >= 6) {
+          return prev;
         }
+        return [...prev, dateStr].sort(); // Keep them sorted
       }
-    }
-  };
-
-  const handleModeChange = (newMode: "single" | "multiple") => {
-    setMode(newMode);
-    if (newMode === "single" && selFromDate !== selToDate) {
-      setSelToDate(selFromDate);
-    }
-    if (newMode === "multiple") {
-      setClickStep(1);
-      setSelToDate(selFromDate);
-    }
+    });
   };
 
   const handleConfirm = () => {
-    const finalTo = selToDate >= selFromDate ? selToDate : selFromDate;
-    onChange(selFromDate, finalTo);
+    onChange(localDates);
     if (onClose) onClose();
-  };
-
-  const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return "Select Date";
-    try {
-      const d = new Date(dateStr + "T00:00:00");
-      if (isNaN(d.getTime())) return dateStr;
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
-    } catch {
-      return dateStr;
-    }
   };
 
   return (
@@ -165,7 +127,7 @@ export function CalendarPickerModal({ fromDate = "", toDate = "", onChange, minD
           )}
         </div>
         <p className="mb-2 text-[0.8rem] text-muted-foreground">
-          {mode === "single" ? "Tap a day to select it." : "Tap start date, then tap end date."}
+          Select up to 6 dates for this event.
         </p>
 
         {/* Month Navigation */}
@@ -205,21 +167,19 @@ export function CalendarPickerModal({ fromDate = "", toDate = "", onChange, minD
           ))}
 
           {calendarDays.days.map((item) => {
-            const isSelected = item.isStart || item.isEnd;
-
             return (
               <button
                 key={item.dateStr}
                 type="button"
-                disabled={item.isDisabled}
+                disabled={item.isDisabled || (!item.isSelected && localDates.length >= 6)}
                 onClick={() => handleSelectDay(item.dateStr)}
                 className={cn(
                   "aspect-square flex flex-col items-center justify-center rounded-xl text-[0.85rem] font-medium transition-all relative",
                   item.isDisabled && "opacity-30 cursor-not-allowed text-muted-foreground line-through",
-                  !item.isDisabled && !isSelected && !item.isRange && "hover:bg-primary-soft hover:text-primary hover:scale-105 text-foreground",
-                  item.isRange && !isSelected && "bg-primary-soft/80 text-primary font-semibold rounded-none first:rounded-l-xl last:rounded-r-xl",
-                  item.isToday && !isSelected && "border border-primary/50 font-bold text-primary",
-                  isSelected && "bg-primary text-primary-foreground font-bold shadow-md scale-105 z-10"
+                  (!item.isSelected && localDates.length >= 6 && !item.isDisabled) && "opacity-50 cursor-not-allowed",
+                  !item.isDisabled && !item.isSelected && "hover:bg-primary-soft hover:text-primary hover:scale-105 text-foreground",
+                  item.isToday && !item.isSelected && "border border-primary/50 font-bold text-primary",
+                  item.isSelected && "bg-primary text-primary-foreground font-bold shadow-md scale-105 z-10"
                 )}
               >
                 {item.day}
@@ -228,45 +188,16 @@ export function CalendarPickerModal({ fromDate = "", toDate = "", onChange, minD
           })}
         </div>
 
-        {/* Mode Toggle */}
-        <div className="mt-4 flex rounded-2xl bg-muted/70 p-1">
-          <button
-            type="button"
-            onClick={() => handleModeChange("single")}
-            className={cn(
-              "flex-1 py-2 rounded-xl text-[0.82rem] font-semibold transition-all",
-              mode === "single"
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Single Day
-          </button>
-          <button
-            type="button"
-            onClick={() => handleModeChange("multiple")}
-            className={cn(
-              "flex-1 py-2 rounded-xl text-[0.82rem] font-semibold transition-all",
-              mode === "multiple"
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Multiple Days
-          </button>
-        </div>
-
         {/* Footer */}
         <div className="mt-4 border-t border-border/50 pt-3 flex items-center justify-between">
-          <span className="text-[0.76rem] font-medium text-foreground truncate max-w-[200px]">
-            {selFromDate === selToDate
-              ? formatDateDisplay(selFromDate)
-              : `${formatDateDisplay(selFromDate)} – ${formatDateDisplay(selToDate)}`}
+          <span className="text-[0.76rem] font-medium text-foreground">
+            {localDates.length} of 6 dates selected
           </span>
           <button
             type="button"
             onClick={handleConfirm}
-            className="px-4 py-2 text-[0.82rem] font-semibold text-primary-foreground bg-primary rounded-xl shadow-xs hover:brightness-110 flex items-center gap-1.5"
+            disabled={localDates.length === 0}
+            className="px-4 py-2 text-[0.82rem] font-semibold text-primary-foreground bg-primary rounded-xl shadow-xs hover:brightness-110 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check className="h-4 w-4" /> Apply Dates
           </button>

@@ -45,7 +45,9 @@ const mapToBackend = (b: any) => {
 
   if (b.approvedBy !== undefined) payload.approvedBy = b.approvedBy;
 
-  if (b.fromDate) {
+  if (b.selectedDates && b.selectedDates.length > 0) {
+    try { payload.eventDate = new Date(b.selectedDates[0]).toISOString(); } catch {}
+  } else if (b.fromDate) {
     try { payload.eventDate = new Date(b.fromDate).toISOString(); } catch {}
   } else {
     payload.eventDate = new Date().toISOString();
@@ -58,6 +60,7 @@ const mapToBackend = (b: any) => {
     date: b.date,
     fromDate: b.fromDate,
     toDate: b.toDate,
+    selectedDates: b.selectedDates,
     startTimeStr: b.startTime,
     endTimeStr: b.endTime,
     daisChairs: b.daisChairs,

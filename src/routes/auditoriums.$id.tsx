@@ -13,14 +13,8 @@ export const Route = createFileRoute("/auditoriums/$id")({
   loader: async ({ params }) => {
     const auditorium = await fetchAuditorium(params.id);
     if (!auditorium) throw notFound();
-    let confirmedBookings: any[] = [];
-    try {
-      const allBookings = await listBookings();
-      confirmedBookings = allBookings.filter(b => b.hallId === params.id && b.status !== "rejected");
-    } catch (err) {
-      console.error("Failed to fetch bookings:", err);
-    }
-    return { auditorium, confirmedBookings };
+    // Removed listBookings() to prevent navigation blocking and lag.
+    return { auditorium, confirmedBookings: [] };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {

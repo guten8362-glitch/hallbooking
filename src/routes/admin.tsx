@@ -147,7 +147,7 @@ function Admin() {
     // Search filter
     if (search.trim()) {
       const query = search.toLowerCase();
-      const hallName = getAuditorium(b.auditoriumId)?.name?.toLowerCase() || "";
+      const hallName = getAuditorium(b.auditoriumId || (b as any).hallId)?.name?.toLowerCase() || "";
       return (
         (b?.id || "").toLowerCase().includes(query) ||
         (b?.institution || "").toLowerCase().includes(query) ||
@@ -457,7 +457,7 @@ function Admin() {
       <div className="space-y-5">
         {filteredBookings.map((b, i) => {
           const stageInfo = getStageInfo(b.stage);
-          const hall = getAuditorium(b.auditoriumId);
+          const hall = getAuditorium(b.auditoriumId || (b as any).hallId);
           const hallDisplayName = hall?.name || (b as any).auditoriumName || (b as any).hallName || "Unknown Venue";
 
           return (
@@ -572,12 +572,12 @@ function Admin() {
 
       {/* Request Details Modal */}
       {selectedBooking && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md rise">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8">
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <h2 className="text-[1.25rem] font-semibold text-foreground">
-                  {getAuditorium(selectedBooking.auditoriumId)?.name || (selectedBooking as any).auditoriumName || "Unknown Venue"}
+                  {getAuditorium(selectedBooking.auditoriumId || (selectedBooking as any).hallId)?.name || (selectedBooking as any).auditoriumName || "Unknown Venue"}
                 </h2>
               </div>
               <button
@@ -626,7 +626,7 @@ function Admin() {
 
       {/* Rejection Modal with Category & Purpose Explanation */}
       {rejectionModalBooking && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md rise">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8">
             <h2 className="text-[1.15rem] font-semibold text-foreground">
               Decline Request ({rejectionModalBooking.id})

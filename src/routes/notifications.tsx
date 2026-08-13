@@ -114,7 +114,7 @@ function Notifications() {
               </span>
               <div>
                 <p className="text-[0.93rem] font-medium">
-                  {getStageInfo(b.stage).label} · {(b as any).auditoriumName || getAuditorium(b.auditoriumId)?.name || "Unknown Venue"}
+                  {getStageInfo(b.stage).label} · {(b as any).auditoriumName || getAuditorium(b.auditoriumId || (b as any).hallId)?.name || "Unknown Venue"}
                 </p>
                 <p className="mt-1 text-[0.82rem] text-muted-foreground">
                   Request ID: {b.id} · {b.createdAt ? new Date(b.createdAt).toLocaleString("en-GB") : "Recent"}

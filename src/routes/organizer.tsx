@@ -92,7 +92,7 @@ export function OrganizerPortal() {
 
     const query = search.toLowerCase();
     return confirmedBookings.filter((b) => {
-      const hall = getAuditorium(b.auditoriumId);
+      const hall = getAuditorium(b.auditoriumId || (b as any).hallId);
       return (
         (b?.id || "").toLowerCase().includes(query) ||
         (b?.institution || "").toLowerCase().includes(query) ||
@@ -290,7 +290,7 @@ export function OrganizerPortal() {
         ) : (
           displayedBookings.map((b, i) => {
             const stageInfo = getStageInfo(b.stage);
-            const hall = getAuditorium(b.auditoriumId);
+            const hall = getAuditorium(b.auditoriumId || (b as any).hallId);
             const currentReminder = reminders[b.id];
             return (
               <Surface key={b.id} delay={i * 50} className="p-6 sm:p-7 border-l-4 border-l-emerald-500">
@@ -370,12 +370,12 @@ export function OrganizerPortal() {
 
       {/* Booking Details Modal */}
       {selectedBooking && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md rise">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card p-6 rounded-3xl border shadow-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card p-6 rounded-3xl border shadow-2xl animate-scale-in">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <span className="font-mono text-xs font-bold text-primary">{selectedBooking.id || selectedBooking.$id || "NEW"}</span>
-                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId)?.name || (selectedBooking as any).auditoriumName || "Unknown Venue"}</h2>
+                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId || (selectedBooking as any).hallId)?.name || (selectedBooking as any).auditoriumName || "Unknown Venue"}</h2>
               </div>
               <button type="button" onClick={() => setSelectedBooking(null)} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="size-5" /></button>
             </div>
@@ -412,7 +412,7 @@ export function OrganizerPortal() {
                 <div>
                   <h2 className="text-base font-bold text-foreground">Set Event Reminder Alert</h2>
                   <p className="text-xs text-muted-foreground">
-                    {reminderModalBooking.eventName || getAuditorium(reminderModalBooking.auditoriumId)?.name || (reminderModalBooking as any).auditoriumName}
+                    {reminderModalBooking.eventName || getAuditorium(reminderModalBooking.auditoriumId || (reminderModalBooking as any).hallId)?.name || (reminderModalBooking as any).auditoriumName}
                   </p>
                 </div>
               </div>

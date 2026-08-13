@@ -236,7 +236,7 @@ export function MyBookings() {
                 <div>
                   <div className="flex items-center gap-2 mb-1.5">
                     <h2 className="text-[1.2rem] font-bold text-foreground">
-                      {getAuditorium(b.auditoriumId)?.name ?? "Auditorium"}
+                      {getAuditorium(b.auditoriumId || (b as any).hallId)?.name ?? "Auditorium"}
                     </h2>
                   </div>
                   <div className="flex flex-col gap-1.5">

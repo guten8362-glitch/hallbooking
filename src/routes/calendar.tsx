@@ -54,7 +54,7 @@ function CalendarPage() {
     if (mvitFlag) return true;
     
     // External users & External Coordinators see ONLY backside auditorium bookings
-    const aud = getAuditorium(b.auditoriumId);
+    const aud = getAuditorium(b.auditoriumId || (b as any).hallId);
     const audName = (aud?.name || (b as any).auditoriumName || (b as any).hallName || "").toLowerCase();
     const audId = (aud?.id || b.auditoriumId || (b as any).hallId || "").toLowerCase();
 
@@ -228,7 +228,7 @@ function CalendarPage() {
                 {/* Event Writings / Badges directly inside the calendar cell! */}
                 <div className="mt-1 flex-1 hidden sm:block space-y-1 overflow-hidden">
                   {dayBookings.slice(0, 2).map((b) => {
-                    const aud = getAuditorium(b.auditoriumId);
+                    const aud = getAuditorium(b.auditoriumId || (b as any).hallId);
                     const isConfirmed = b.stage === "confirmed";
                     return (
                       <div
@@ -295,7 +295,7 @@ function CalendarPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             {selectedBookings.map((b) => {
-              const aud = getAuditorium(b.auditoriumId);
+              const aud = getAuditorium(b.auditoriumId || (b as any).hallId);
               const isConfirmed = b.stage === "confirmed";
 
               return (

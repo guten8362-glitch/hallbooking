@@ -1,5 +1,6 @@
 import { APPWRITE_CONFIG } from './constants';
 import { functions } from './client';
+import { ID } from 'appwrite';
 
 /**
  * Appwrite Messaging Wrapper for Client Side
@@ -56,7 +57,7 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
       const res = await functions.createExecution(
         APPWRITE_CONFIG.notificationFunctionId,
         JSON.stringify(payload),
-        false // async
+        true // async - MUST BE TRUE to prevent UI lag!
       );
       console.log("🚀 Serverless Push Function Triggered:", res);
       console.groupEnd();
@@ -68,7 +69,45 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
     }
   }
 
-  console.warn('⚠️ VITE_APPWRITE_NOTIFICATION_FUNCTION_ID is not configured. Notifications cannot be sent securely.');
+  // Option 2: Direct Appwrite Messaging REST API (Fallback for local frontend dispatch)
+  const apiKey = import.meta.env.VITE_APPWRITE_API_KEY;
+  if (apiKey) {
+    try {
+      const fallbackPayload = {
+        messageId: ID.unique(),
+        title,
+        body,
+        users: targetUserIds,
+        icon: iconUrl,
+        data,
+      };
+      
+      const response = await fetch(`${APPWRITE_CONFIG.endpoint}/messaging/messages/push`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+          'X-Appwrite-Key': apiKey,
+        },
+        body: JSON.stringify(fallbackPayload),
+      });
+
+      if (!response.ok) {
+        console.error(`Appwrite REST API Push Error [${response.status}]:`, await response.text());
+        return null;
+      }
+      const res = await response.json();
+      console.log("🚀 Appwrite Messaging Push Response:", res);
+      console.groupEnd();
+      return res;
+    } catch (err) {
+      console.error('Appwrite REST API Push Exception:', err);
+      console.groupEnd();
+      return null;
+    }
+  }
+
+  console.warn('⚠️ Neither VITE_APPWRITE_NOTIFICATION_FUNCTION_ID nor VITE_APPWRITE_API_KEY is configured for Push Notifications.');
   console.groupEnd();
   return null;
 };
@@ -88,7 +127,7 @@ export const sendEmailNotification = async (users: string[], subject: string, co
       return await functions.createExecution(
         APPWRITE_CONFIG.notificationFunctionId,
         JSON.stringify(payload),
-        false // async
+        true // async
       );
     } catch (err) {
       console.error('Failed to trigger Email Notification Function:', err);

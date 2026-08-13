@@ -118,7 +118,7 @@ export function CoordinatorPortal() {
 
     const query = search.toLowerCase();
     return list.filter((b) => {
-      const hall = getAuditorium(b.auditoriumId);
+      const hall = getAuditorium(b.auditoriumId || (b as any).hallId);
       return (
         (b?.id || "").toLowerCase().includes(query) ||
         (b?.institution || "").toLowerCase().includes(query) ||
@@ -277,7 +277,7 @@ export function CoordinatorPortal() {
           </div>
           <div className="space-y-4">
             {allowedBookings.map((b) => {
-              const hall = getAuditorium(b.auditoriumId);
+              const hall = getAuditorium(b.auditoriumId || (b as any).hallId);
               const stageInfo = getStageInfo(b.stage);
               return (
                 <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-border/70 bg-muted/30 gap-3">
@@ -409,7 +409,7 @@ export function CoordinatorPortal() {
           ) : (
             displayedBookings.map((b, i) => {
               const stageInfo = getStageInfo(b.stage);
-              const hall = getAuditorium(b.auditoriumId);
+              const hall = getAuditorium(b.auditoriumId || (b as any).hallId);
               const hallDisplayName = hall?.name || (b as any).auditoriumName || (b as any).hallName || "Unknown Venue";
               return (
                 <Surface key={b.id} delay={i * 50} className="p-6 sm:p-7">
@@ -526,7 +526,7 @@ export function CoordinatorPortal() {
           <div className="w-full max-w-lg bg-card p-6 rounded-3xl border shadow-2xl">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId)?.name || (selectedBooking as any).auditoriumName}</h2>
+                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId || (selectedBooking as any).hallId)?.name || (selectedBooking as any).auditoriumName}</h2>
               </div>
               <button onClick={() => setSelectedBooking(null)} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><XCircle className="size-5" /></button>
             </div>

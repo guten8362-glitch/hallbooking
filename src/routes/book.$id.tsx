@@ -24,12 +24,8 @@ export const Route = createFileRoute("/book/$id")({
   loader: async ({ params }) => {
     const auditorium = await fetchAuditorium(params.id);
     if (!auditorium) throw notFound();
-    let confirmedBookings: any[] = [];
-    try {
-      const allBookings = await listBookings();
-      confirmedBookings = allBookings.filter(b => b.hallId === params.id && (b.status === true || b.status === "confirm" || b.status === "confirmed" || b.status === "pending" || b.status === "forwarded"));
-    } catch (err) {}
-    return { auditorium, confirmedBookings };
+    // Fetch bookings via useBookings context instead to prevent lag and ensure all bookings are checked
+    return { auditorium, confirmedBookings: [] };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
@@ -50,8 +46,8 @@ export const Route = createFileRoute("/book/$id")({
 });
 
 function BookingForm() {
-  const { auditorium, confirmedBookings } = Route.useLoaderData() as { auditorium: Auditorium, confirmedBookings: any[] };
-  const { draft, submitDraft } = useBookings();
+  const { auditorium } = Route.useLoaderData() as { auditorium: Auditorium };
+  const { draft, submitDraft, bookings: storeBookings } = useBookings();
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -71,7 +67,12 @@ function BookingForm() {
 
   const bookedSlots = useMemo(() => {
     const slots: { date: string, start: string, end: string }[] = [];
-    confirmedBookings.forEach(b => {
+    const activeBookings = storeBookings.filter(b => 
+      ((b.auditoriumId || b.hallId || "") === auditorium.id || (b.auditoriumName || b.hallName || "") === auditorium.name) && 
+      b.stage !== "rejected" && b.stage !== "draft"
+    );
+
+    activeBookings.forEach(b => {
       let dates: string[] = [];
       let remarks: any = {};
       try {
@@ -114,7 +115,7 @@ function BookingForm() {
       });
     });
     return slots;
-  }, [confirmedBookings]);
+  }, [storeBookings, auditorium.id, auditorium.name]);
 
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);

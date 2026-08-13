@@ -38,7 +38,7 @@ function Confirmed() {
   useEffect(() => {
     if (!booking) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8080";
-    const hallName = getAuditorium(booking.auditoriumId)?.name || "Auditorium";
+    const hallName = getAuditorium(booking.auditoriumId || (booking as any).hallId)?.name || "Auditorium";
     const verificationPayload = `${origin}/bookings/${booking.id}/confirmed?id=${booking.id}&hall=${encodeURIComponent(hallName)}&status=CONFIRMED_BY_PRINCIPAL&action=print`;
 
     QRCode.toDataURL(verificationPayload, {
@@ -124,7 +124,7 @@ function Confirmed() {
 
         <Surface className="mt-8 text-left" delay={160}>
           <Row label="Booking ID" value={booking.id} />
-          <Row label="Auditorium" value={getAuditorium(booking.auditoriumId)?.name} />
+          <Row label="Auditorium" value={getAuditorium(booking.auditoriumId || (booking as any).hallId)?.name} />
           <Row label="Date" value={formatDate(booking.date)} />
           <Row label="Time" value={`${booking.startTime} – ${booking.endTime}`} />
           {qr && (
@@ -157,7 +157,7 @@ function Confirmed() {
 
         <div className="mt-12 overflow-x-auto rounded-xl border border-border shadow-sm print:block print:border-none print:shadow-none">
           <div className="min-w-[800px] print:min-w-0">
-            <ConfirmationLetter booking={booking} auditorium={getAuditorium(booking.auditoriumId)} ref={letterRef} />
+            <ConfirmationLetter booking={booking} auditorium={getAuditorium(booking.auditoriumId || (booking as any).hallId)} ref={letterRef} />
           </div>
         </div>
       </div>

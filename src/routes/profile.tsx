@@ -139,7 +139,7 @@ function Profile() {
           </h3>
           <div className="space-y-2.5">
             {displayList.slice(0, 10).map((b) => {
-              const aud = getAuditorium(b.auditoriumId);
+              const aud = getAuditorium(b.auditoriumId || (b as any).hallId);
               return (
                 <div key={b.id} className="surface p-4 rounded-xl flex items-center justify-between gap-3">
                   <div>

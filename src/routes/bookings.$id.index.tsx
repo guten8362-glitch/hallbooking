@@ -58,7 +58,7 @@ export function BookingDetail() {
 
   const stageInfo = getStageInfo(booking.stage);
   const idx = stageIndex(booking.stage);
-  const aud = getAuditorium(booking.auditoriumId);
+  const aud = getAuditorium(booking.auditoriumId || (booking as any).hallId);
 
   const handleCancelBooking = () => {
     if (confirm("Are you sure you want to cancel and delete this booking request?")) {

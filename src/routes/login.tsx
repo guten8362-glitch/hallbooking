@@ -233,7 +233,7 @@ function LoginPage() {
     if (ready && user && !magicLinkLoading) {
       sessionStorage.setItem("justLoggedIn", "true");
       const targetPath = getDefaultRouteForUser(user);
-      navigate({ to: targetPath });
+      window.location.href = targetPath;
     }
   }, [ready, user, navigate, magicLinkLoading]);
 

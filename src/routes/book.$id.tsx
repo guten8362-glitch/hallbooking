@@ -27,7 +27,7 @@ export const Route = createFileRoute("/book/$id")({
     let confirmedBookings: any[] = [];
     try {
       const allBookings = await listBookings();
-      confirmedBookings = allBookings.filter(b => b.hallId === params.id && (b.status === true || b.status === "confirm" || b.status === "confirmed"));
+      confirmedBookings = allBookings.filter(b => b.hallId === params.id && (b.status === true || b.status === "confirm" || b.status === "confirmed" || b.status === "pending" || b.status === "forwarded"));
     } catch (err) {}
     return { auditorium, confirmedBookings };
   },
@@ -73,8 +73,9 @@ function BookingForm() {
     const slots: { date: string, start: string, end: string }[] = [];
     confirmedBookings.forEach(b => {
       let dates: string[] = [];
+      let remarks: any = {};
       try {
-        const remarks = JSON.parse(b.remarks || "{}");
+        remarks = JSON.parse(b.remarks || "{}");
         if (remarks.selectedDates && Array.isArray(remarks.selectedDates)) {
           dates = remarks.selectedDates;
         } else if (remarks.fromDate && remarks.toDate) {
@@ -93,11 +94,22 @@ function BookingForm() {
         dates.push(b.eventDate.split('T')[0]);
       }
 
+      const timeToHHMM = (val: string) => {
+        if (!val) return "";
+        if (val.includes("T")) {
+          const date = new Date(val);
+          if (!isNaN(date.getTime())) {
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          }
+        }
+        return val;
+      };
+
       dates.forEach(date => {
         slots.push({
           date,
-          start: b.startTime || "00:00",
-          end: b.endTime || "23:59",
+          start: timeToHHMM(remarks.startTimeStr || b.startTime) || "00:00",
+          end: timeToHHMM(remarks.endTimeStr || b.endTime) || "23:59",
         });
       });
     });

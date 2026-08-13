@@ -57,6 +57,8 @@ const mapToBackend = (b: any) => {
 
   payload.remarks = JSON.stringify({
     stage: b.stage,
+    auditoriumId: b.auditoriumId,
+    auditoriumName: b.auditoriumName,
     date: b.date,
     fromDate: b.fromDate,
     toDate: b.toDate,

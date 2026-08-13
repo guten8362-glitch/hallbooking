@@ -450,8 +450,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           } catch {}
         }
 
+        const resolvedAudName = auditoriums.find(a => a.id === data.auditoriumId)?.name || 'the venue';
         const bookingData = {
           ...data,
+          auditoriumName: resolvedAudName,
           stage: initialStage,
           requesterId: activeUserId,
           requesterEmail: activeUserEmail,
@@ -483,7 +485,19 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           }
           
           const audName = auditoriums.find(a => a.id === booking.auditoriumId)?.name || 'the venue';
-          const details = `🏢 Venue: ${audName}\n📅 Date: ${booking.date}\n👤 By: ${booking.coordinator} (${booking.institution})`;
+          
+          let displayDate = "Unknown Date";
+          if (booking.selectedDates && booking.selectedDates.length > 0) {
+            displayDate = booking.selectedDates.length === 1 
+              ? formatDate(booking.selectedDates[0]) 
+              : `${booking.selectedDates.length} Dates: ${formatDate(booking.selectedDates[0])} to ${formatDate(booking.selectedDates[booking.selectedDates.length - 1])}`;
+          } else if (booking.fromDate) {
+            displayDate = formatDate(booking.fromDate, booking.toDate);
+          } else if ((booking as any).date) {
+            displayDate = (booking as any).date;
+          }
+
+          const details = `🏢 Venue: ${audName}\n📅 Date: ${displayDate}\n🕒 Time: ${booking.startTime} - ${booking.endTime}\n👤 By: ${booking.coordinator} (${booking.institution})`;
           
           if (initialStage === 'pending_super_admin') {
             notifyRole('admin', `🎟️ New Booking Request: ${booking.eventName}`, details);

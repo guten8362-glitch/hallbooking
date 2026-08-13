@@ -211,8 +211,8 @@ function LoginPage() {
       await account.createSession(otpUserId, otp);
       window.location.replace(window.location.pathname);
     } catch (err: any) {
-      console.error(err);
-      setError("Invalid OTP or expired.");
+      console.error("OTP verification error:", err);
+      setError(err.message || "Invalid OTP or expired.");
     } finally {
       setLoading(false);
     }
@@ -286,7 +286,7 @@ function LoginPage() {
           return (
             <div
               key={logo.id}
-              className="absolute pointer-events-auto hidden sm:block"
+              className="absolute pointer-events-auto hidden lg:block"
               style={{
                 ...logo.pos,
                 transform: `translate3d(calc(var(--mx) * ${moveX}px), calc(var(--my) * ${moveY}px), 0px) rotateX(calc(var(--my) * ${rotX}deg)) rotateY(calc(var(--mx) * ${rotY}deg))`,

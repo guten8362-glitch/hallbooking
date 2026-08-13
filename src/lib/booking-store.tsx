@@ -205,11 +205,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         const hallsData = await fetchAuditoriums();
         setAuditoriums(hallsData);
 
-        // SECURITY FIX: If the user is a standard user, only fetch their own bookings to prevent data leakage.
-        const queries = [];
-        if (user.role === "user") {
-          queries.push(Query.equal("requesterId", user.$id || (user as any).id));
-        }
+        // We fetch all bookings so the calendar can display availability accurately for everyone.
+        // The UI (e.g. My Bookings) will filter this list client-side.
+        const queries: any[] = [];
 
         const bookingsData = await listBookings(queries);
         // Map Appwrite documents to Booking interface

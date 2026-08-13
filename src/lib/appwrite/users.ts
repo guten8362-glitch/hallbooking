@@ -98,26 +98,31 @@ export const updateUserFCMToken = async (email: string, token: string, userAuthI
     const normalizedEmail = (email || '').toLowerCase().trim();
     if (!normalizedEmail) return false;
 
-    // 1. Search user in database
-    let list = await databases.listDocuments(
-      APPWRITE_CONFIG.databaseId,
-      APPWRITE_CONFIG.collections.users,
-      [Query.equal('mail_id', normalizedEmail)]
-    );
+    let targetUser: any = null;
 
-    if (list.documents.length === 0) {
-      list = await databases.listDocuments(
+    try {
+      // 1. Search user in database by mail_id
+      let list = await databases.listDocuments(
         APPWRITE_CONFIG.databaseId,
         APPWRITE_CONFIG.collections.users,
-        [Query.equal('email', normalizedEmail)]
+        [Query.equal('mail_id', normalizedEmail)]
       );
+
+      if (list.documents.length === 0) {
+        list = await databases.listDocuments(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.collections.users,
+          [Query.equal('email', normalizedEmail)]
+        );
+      }
+      targetUser = list.documents[0];
+    } catch (err) {
+      console.warn("Appwrite: listDocuments failed, falling back to getAllUsersFromDatabase", err);
     }
     
-    let targetUser = list.documents[0];
     if (!targetUser) {
-      const allList = await databases.listDocuments(APPWRITE_CONFIG.databaseId, APPWRITE_CONFIG.collections.users, [Query.limit(100)]);
-      targetUser = allList.documents.find((u: any) => 
-         (u.mail_id || '').toLowerCase().trim() === normalizedEmail ||
+      const allUsers = await getAllUsersFromDatabase();
+      targetUser = allUsers.find(u => 
          (u.email || '').toLowerCase().trim() === normalizedEmail
       );
     }

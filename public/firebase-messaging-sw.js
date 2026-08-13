@@ -37,3 +37,40 @@ self.addEventListener('fetch', function(event) {
   // Pass through all requests to network
   return;
 });
+
+// Handle notification click
+self.addEventListener('notificationclick', function(event) {
+  console.log('[firebase-messaging-sw.js] Notification click Received.', event);
+
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
+      // If we have a URL passed in the notification data, try to open that. Otherwise default to root.
+      const urlToOpen = (event.notification.data && event.notification.data.url) || self.registration.scope;
+      
+      // Check if there is already a window/tab open with the target URL
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        // If it's the exact same URL, focus it
+        if (client.url === urlToOpen && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      
+      // Check if any app window is open at all, and navigate it
+      if (windowClients.length > 0) {
+        const client = windowClients[0];
+        if ('navigate' in client && 'focus' in client) {
+          client.navigate(urlToOpen);
+          return client.focus();
+        }
+      }
+      
+      // If no window/tab is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { 
   Eye, 
   Search, 
@@ -170,10 +171,20 @@ export function OrganizerPortal() {
           }
 
           if (shouldAlert) {
-            toast.warning(alertMsg, {
-              description: `Venue: ${b.auditoriumId} | Setup required.`,
-              duration: 10000,
-            });
+            const audName = (b as any).auditoriumName || hall?.name || b.auditoriumId;
+            
+            if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && Notification.permission === 'granted') {
+              navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification(alertMsg, {
+                  body: `Venue: ${audName} | Setup required.`,
+                  icon: '/logos/logo4.jpg',
+                  badge: '/logo192.png',
+                  data: { url: '/organizer' },
+                  vibrate: [200, 100, 200]
+                });
+              });
+            }
+
             alerted.add(b.id);
           }
         });
@@ -295,7 +306,7 @@ export function OrganizerPortal() {
                        </div>
                     )}
                     <div>
-                      <h2 className="text-lg sm:text-xl font-extrabold text-foreground leading-tight">{hall?.name || b.auditoriumId || "Auditorium"}</h2>
+                      <h2 className="text-lg sm:text-xl font-extrabold text-foreground leading-tight">{hall?.name || (b as any).auditoriumName || b.auditoriumId || "Auditorium"}</h2>
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
                         <span className="flex items-center gap-1.5 text-foreground/80"><CalendarIcon className="h-3.5 w-3.5 text-primary/70" /> {formatDate(b.fromDate || b.date, b.toDate)}</span>
                         <span className="flex items-center gap-1.5 text-foreground/80"><Clock className="h-3.5 w-3.5 text-primary/70" /> {formatTime(b.startTime)} — {formatTime(b.endTime)}</span>
@@ -358,13 +369,13 @@ export function OrganizerPortal() {
       </div>
 
       {/* Booking Details Modal */}
-      {selectedBooking && (
+      {selectedBooking && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md rise">
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card p-6 rounded-3xl border shadow-2xl">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <span className="font-mono text-xs font-bold text-primary">{selectedBooking.id || selectedBooking.$id || "NEW"}</span>
-                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId)?.name || "Unknown Venue"}</h2>
+                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId)?.name || (selectedBooking as any).auditoriumName || "Unknown Venue"}</h2>
               </div>
               <button type="button" onClick={() => setSelectedBooking(null)} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="size-5" /></button>
             </div>
@@ -386,11 +397,11 @@ export function OrganizerPortal() {
               <button type="button" onClick={() => setSelectedBooking(null)} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:brightness-110">Close</button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
       {/* Reminder Alert Modal */}
-      {reminderModalBooking && (
+      {reminderModalBooking && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-md bg-card p-6 rounded-3xl border border-border shadow-2xl animate-scale-in">
             <div className="flex items-start justify-between mb-3">
@@ -401,7 +412,7 @@ export function OrganizerPortal() {
                 <div>
                   <h2 className="text-base font-bold text-foreground">Set Event Reminder Alert</h2>
                   <p className="text-xs text-muted-foreground">
-                    {reminderModalBooking.eventName || getAuditorium(reminderModalBooking.auditoriumId)?.name}
+                    {reminderModalBooking.eventName || getAuditorium(reminderModalBooking.auditoriumId)?.name || (reminderModalBooking as any).auditoriumName}
                   </p>
                 </div>
               </div>
@@ -448,30 +459,31 @@ export function OrganizerPortal() {
 
             {/* Custom Option */}
             <div className="mb-6 rounded-2xl border border-border/70 bg-muted/40 p-3">
-              <label className="flex items-center gap-2 cursor-pointer mb-2">
+              <label className="flex items-center gap-2 text-xs font-bold mb-2 cursor-pointer">
                 <input
                   type="radio"
+                  name="reminderType"
                   checked={isCustom}
                   onChange={() => setIsCustom(true)}
                   className="accent-primary"
                 />
-                <span className="text-xs font-bold text-foreground">Custom Reminder Time</span>
+                Custom Time
               </label>
-
+              
               {isCustom && (
-                <div className="flex gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2">
                   <input
                     type="number"
                     min="1"
-                    placeholder="e.g. 3"
                     value={customValue}
                     onChange={(e) => setCustomValue(e.target.value)}
-                    className="h-10 w-1/2 rounded-xl border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+                    placeholder="e.g. 2"
+                    className="h-10 w-20 rounded-xl border border-border bg-card px-3 text-sm font-medium outline-none focus:border-primary"
                   />
                   <select
                     value={customUnit}
                     onChange={(e) => setCustomUnit(e.target.value as any)}
-                    className="h-10 w-1/2 rounded-xl border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+                    className="h-10 flex-1 rounded-xl border border-border bg-card px-3 text-sm font-medium outline-none focus:border-primary"
                   >
                     <option value="minutes">Minutes</option>
                     <option value="hours">Hours</option>
@@ -481,33 +493,33 @@ export function OrganizerPortal() {
               )}
             </div>
 
-            <div className="flex gap-2 pt-2 border-t border-border/50">
-              {reminders[reminderModalBooking.id] && (
-                <button
-                  type="button"
-                  onClick={() => removeReminder(reminderModalBooking.id)}
-                  className="h-11 px-4 rounded-xl border border-red-200 bg-red-50 text-xs font-bold text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300"
-                >
-                  Remove
-                </button>
-              )}
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setReminderModalBooking(null)}
-                className="flex-1 h-11 rounded-xl border border-border bg-card text-xs font-bold text-foreground hover:bg-muted"
+                className="px-4 py-2.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold shadow-sm hover:bg-muted"
               >
                 Cancel
               </button>
+              {reminders[reminderModalBooking.id] && (
+                 <button
+                   type="button"
+                   onClick={() => removeReminder(reminderModalBooking.id)}
+                   className="px-4 py-2.5 rounded-xl bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400 text-xs font-bold shadow-sm hover:bg-red-200 dark:hover:bg-red-900/40"
+                 >
+                   Remove Alert
+                 </button>
+              )}
               <button
                 type="button"
                 onClick={() => saveReminder(reminderModalBooking.id)}
-                className="flex-1 h-11 rounded-xl bg-primary text-xs font-bold text-primary-foreground hover:brightness-110 shadow-xs"
+                className="px-6 py-2.5 rounded-xl bg-amber-500 text-amber-950 text-xs font-extrabold shadow-sm hover:brightness-110 flex items-center gap-1.5"
               >
-                Save Alert
+                <BellRing className="h-3.5 w-3.5" /> Save Alert
               </button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
     </AppShell>
   );

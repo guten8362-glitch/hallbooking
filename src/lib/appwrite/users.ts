@@ -35,7 +35,8 @@ export const getAllUsersFromDatabase = async (): Promise<User[]> => {
   try {
     const response = await databases.listDocuments(
       APPWRITE_CONFIG.databaseId,
-      APPWRITE_CONFIG.collections.users
+      APPWRITE_CONFIG.collections.users,
+      [Query.limit(1000)]
     );
     return response.documents.map((doc: any) => ({
       email: doc.mail_id || doc.email || '',
@@ -50,7 +51,8 @@ export const getAllUsersFromDatabase = async (): Promise<User[]> => {
       await account.createAnonymousSession();
       const retryResponse = await databases.listDocuments(
         APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.users
+        APPWRITE_CONFIG.collections.users,
+        [Query.limit(1000)]
       );
       return retryResponse.documents.map((doc: any) => ({
         email: doc.mail_id || doc.email || '',

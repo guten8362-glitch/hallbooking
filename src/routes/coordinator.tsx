@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createPortal } from "react-dom";
 import { useState, useMemo, useEffect } from "react";
 import { 
   CheckCircle2, 
@@ -474,7 +475,7 @@ export function CoordinatorPortal() {
         </div>
       )}
 
-      {approvalModalBooking && (
+      {approvalModalBooking && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-md bg-card p-6 rounded-3xl border shadow-2xl">
             <h2 className="text-lg font-bold mb-1">{isAdmin ? "Confirm & Finalize Request" : "Approve & Forward Request"} ({approvalModalBooking.id})</h2>
@@ -489,10 +490,10 @@ export function CoordinatorPortal() {
               </div>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
-      {rejectionModalBooking && (
+      {rejectionModalBooking && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-md bg-card p-6 rounded-3xl border shadow-2xl">
             <h2 className="text-lg font-bold mb-1">Decline Request ({rejectionModalBooking.id})</h2>
@@ -517,15 +518,15 @@ export function CoordinatorPortal() {
               </div>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
-      {selectedBooking && (
+      {selectedBooking && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-lg bg-card p-6 rounded-3xl border shadow-2xl">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId)?.name}</h2>
+                <h2 className="text-lg font-bold">{getAuditorium(selectedBooking.auditoriumId)?.name || (selectedBooking as any).auditoriumName}</h2>
               </div>
               <button onClick={() => setSelectedBooking(null)} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><XCircle className="size-5" /></button>
             </div>
@@ -541,7 +542,7 @@ export function CoordinatorPortal() {
               <button onClick={() => setSelectedBooking(null)} className="px-4 py-2 rounded-xl bg-muted text-xs font-bold">Close</button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
     </AppShell>
   );

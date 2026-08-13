@@ -577,7 +577,7 @@ function Admin() {
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <h2 className="text-[1.25rem] font-semibold text-foreground">
-                  {getAuditorium(selectedBooking.auditoriumId)?.name || (selectedBooking.auditoriumId !== "undefined" && selectedBooking.auditoriumId ? selectedBooking.auditoriumId : "Venue Not Selected")}
+                  {getAuditorium(selectedBooking.auditoriumId)?.name || (selectedBooking as any).auditoriumName || "Unknown Venue"}
                 </h2>
               </div>
               <button

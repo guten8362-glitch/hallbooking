@@ -1,5 +1,5 @@
 import { ID, OAuthProvider, Query } from 'appwrite';
-import { account, databases, teams } from './client';
+import { account, databases, teams, functions } from './client';
 import { APPWRITE_CONFIG } from './constants';
 
 export const loginWithGoogle = () => {
@@ -53,19 +53,22 @@ export const getCurrentUser = async () => {
     const user = await account.get();
     
     try {
-      const list = await databases.listDocuments(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.users,
-        [Query.limit(100)]
+      const functionId = import.meta.env.VITE_LOGIN_FUNCTION_ID || "6727282a003cf54291dc";
+      const response = await functions.createExecution(
+        functionId,
+        JSON.stringify({ email: user.email }),
+        false,
+        '/',
+        'POST'
       );
       
-      const userDoc = list.documents.find((d: any) => {
-        const docEmail = (d.mail_id || d.email || '').toLowerCase().trim();
-        const userEmail = (user.email || '').toLowerCase().trim();
-        return docEmail === userEmail;
-      });
+      if (response.status === 'failed') {
+        throw new Error("Failed to verify user profile with backend");
+      }
       
-      if (!userDoc) {
+      const userDoc = JSON.parse(response.responseBody);
+      
+      if (userDoc.error || !userDoc.authorized) {
         console.warn(`User ${user.email} not found in the users database table. Access denied.`);
         await account.deleteSession('current');
         if (typeof window !== 'undefined' && !window.location.href.includes('error=unauthorized')) {

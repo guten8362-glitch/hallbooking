@@ -388,7 +388,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [user?.$id]);
 
 
 

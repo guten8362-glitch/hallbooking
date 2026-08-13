@@ -7,6 +7,7 @@ import { loginWithGoogle } from "@/lib/appwrite/account";
 import { account } from "@/lib/appwrite/client";
 import { ID } from "appwrite";
 import { Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 type LoginSearch = {

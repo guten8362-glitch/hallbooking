@@ -116,6 +116,17 @@ function LoginPage() {
   const [showOtp, setShowOtp] = useState(false);
   const [otpUserId, setOtpUserId] = useState("");
 
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('error') === 'unauthorized') {
+      toast.error("Access Denied", {
+        description: "Your email is not registered in the system. Please use an authorized email or contact the administrator."
+      });
+      // Clean up URL to prevent toast spam on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Parallax Direct DOM Container Ref
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeLogo, setActiveLogo] = useState<InstitutionalLogo | null>(null);
@@ -206,7 +217,7 @@ function LoginPage() {
     if (!otp || otp.length < 6) return setError("Please enter the 6-digit OTP");
 
     setLoading(true);
-    setError(null);
+    setError("");
     try {
       await account.createSession(otpUserId, otp);
       window.location.replace(window.location.pathname);

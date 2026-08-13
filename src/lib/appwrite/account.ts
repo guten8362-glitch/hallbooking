@@ -1,4 +1,4 @@
-import { ID, OAuthProvider } from 'appwrite';
+import { ID, OAuthProvider, Query } from 'appwrite';
 import { account, databases, teams } from './client';
 import { APPWRITE_CONFIG } from './constants';
 
@@ -55,7 +55,8 @@ export const getCurrentUser = async () => {
     try {
       const list = await databases.listDocuments(
         APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.users
+        APPWRITE_CONFIG.collections.users,
+        [Query.limit(100)]
       );
       
       const userDoc = list.documents.find((d: any) => {
@@ -67,6 +68,9 @@ export const getCurrentUser = async () => {
       if (!userDoc) {
         console.warn(`User ${user.email} not found in the users database table. Access denied.`);
         await account.deleteSession('current');
+        if (typeof window !== 'undefined' && !window.location.href.includes('error=unauthorized')) {
+          window.location.href = '/login?error=unauthorized';
+        }
         return null;
       }
       
@@ -103,6 +107,9 @@ export const getCurrentUser = async () => {
     } catch (e) {
       console.error("Error reading users table:", e);
       await account.deleteSession('current');
+      if (typeof window !== 'undefined' && !window.location.href.includes('error=unauthorized')) {
+        window.location.href = '/login?error=unauthorized';
+      }
       return null;
     }
   } catch (error) {

@@ -114,7 +114,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [showOtp, setShowOtp] = useState(false);
-  const [userId, setUserId] = useState("");
+  const [otpUserId, setOtpUserId] = useState("");
 
   // Parallax Direct DOM Container Ref
   const containerRef = useRef<HTMLDivElement>(null);
@@ -189,7 +189,7 @@ function LoginPage() {
 
       // 2. If authorized, trigger Appwrite native OTP email
       const sessionToken = await account.createEmailToken(ID.unique(), email);
-      setUserId(sessionToken.userId);
+      setOtpUserId(sessionToken.userId);
       setShowOtp(true);
       toast.success("OTP sent to your email!");
       
@@ -208,7 +208,7 @@ function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      await account.createSession(userId, otp);
+      await account.createSession(otpUserId, otp);
       window.location.replace(window.location.pathname);
     } catch (err: any) {
       console.error(err);

@@ -111,6 +111,9 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [showOtp, setShowOtp] = useState(false);
+  const [userId, setUserId] = useState("");
 
   // Parallax Direct DOM Container Ref
   const containerRef = useRef<HTMLDivElement>(null);

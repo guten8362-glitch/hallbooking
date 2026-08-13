@@ -43,6 +43,7 @@ export const getAllUsersFromDatabase = async (): Promise<User[]> => {
       name: doc.name || '',
       institution: doc.institution || 'MVIT',
       role: doc.role || 'user',
+      fcm_token: doc.fcm_token || null,
       $id: doc.user_id || doc.userId || doc.auth_id || doc.$id
     }));
   } catch (error) {
@@ -59,6 +60,7 @@ export const getAllUsersFromDatabase = async (): Promise<User[]> => {
         name: doc.name || '',
         institution: doc.institution || 'MVIT',
         role: doc.role || 'user',
+        fcm_token: doc.fcm_token || null,
         $id: doc.user_id || doc.userId || doc.auth_id || doc.$id
       }));
     } catch (retryErr) {

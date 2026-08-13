@@ -7,6 +7,8 @@ import { ID } from 'appwrite';
  * Supports both Appwrite Serverless Functions AND direct Appwrite API Key messaging fallback.
  */
 
+import { getAllUsersFromDatabase } from './users';
+
 export const getUserIdByEmail = async (email: string) => {
   return null;
 };
@@ -41,6 +43,57 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
 
   // Determine badge (small status bar icon, must be transparent/monochrome PNG)
   const badgeUrl = window.location.origin + '/logo192.png'; // Using generic PWA logo for the badge
+
+  // Firebase Direct Push (Frontend Fallback)
+  const firebaseServerKey = import.meta.env.VITE_FIREBASE_SERVER_KEY;
+  if (firebaseServerKey) {
+    try {
+      // We need to resolve userIds to fcm_tokens
+      const allUsers = await getAllUsersFromDatabase();
+      const fcmTokens = targetUserIds
+        .map(id => allUsers.find(u => u.$id === id)?.fcm_token)
+        .filter(Boolean) as string[];
+
+      if (fcmTokens.length === 0) {
+        console.warn("❌ Firebase Direct Push Failed: No FCM tokens found for target users.");
+        return null;
+      }
+
+      console.log(`🚀 Sending Direct Firebase Push to ${fcmTokens.length} devices...`);
+
+      const payload = {
+        registration_ids: fcmTokens,
+        notification: {
+          title,
+          body,
+          icon: iconUrl,
+        },
+        data: data || {}
+      };
+
+      const response = await fetch('https://fcm.googleapis.com/fcm/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `key=${firebaseServerKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+         console.error(`Firebase Direct Push Error [${response.status}]:`, await response.text());
+         return null;
+      }
+      
+      const res = await response.json();
+      console.log("🚀 Firebase Direct Push Response:", res);
+      console.groupEnd();
+      return res;
+
+    } catch (err) {
+       console.error('Firebase Direct Push Exception:', err);
+    }
+  }
 
   // Option 1: Appwrite Serverless Function
   if (APPWRITE_CONFIG.notificationFunctionId) {
@@ -107,7 +160,7 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
     }
   }
 
-  console.warn('⚠️ Neither VITE_APPWRITE_NOTIFICATION_FUNCTION_ID nor VITE_APPWRITE_API_KEY is configured for Push Notifications.');
+  console.warn('⚠️ No Push Notification method configured (VITE_FIREBASE_SERVER_KEY, VITE_APPWRITE_NOTIFICATION_FUNCTION_ID, VITE_APPWRITE_API_KEY).');
   console.groupEnd();
   return null;
 };

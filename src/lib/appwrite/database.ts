@@ -94,7 +94,22 @@ export const createBooking = async (bookingData: any) => {
 
 export const updateBooking = async (id: string, updateData: any) => {
   try {
-    const payload = mapToBackend(updateData);
+    let mergedData = { ...updateData };
+    try {
+      const existingDoc = await databases.getDocument(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.collections.bookings,
+        id
+      );
+      if (existingDoc.remarks) {
+        const existingRemarks = JSON.parse(existingDoc.remarks);
+        mergedData = { ...existingRemarks, ...updateData };
+      }
+    } catch (e) {
+      console.warn('Could not fetch existing document to merge data, proceeding with updateData only', e);
+    }
+
+    const payload = mapToBackend(mergedData);
     // don't overwrite eventDate if not provided in updateData
     if (!updateData.fromDate && !updateData.date) {
         delete payload.eventDate;
@@ -108,8 +123,9 @@ export const updateBooking = async (id: string, updateData: any) => {
       payload
     );
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Appwrite: Error updating booking', error);
+    alert(`Failed to update booking in database. Error: ${error?.message || error}`);
     throw error;
   }
 };

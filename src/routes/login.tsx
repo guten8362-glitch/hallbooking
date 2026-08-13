@@ -6,7 +6,7 @@ import { useAuth, isAdminUser, isCoordinatorUser, getDefaultRouteForUser } from 
 import { loginWithGoogle } from "@/lib/appwrite/account";
 import { account } from "@/lib/appwrite/client";
 import { ID } from "appwrite";
-import { Mail, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type LoginSearch = {
@@ -108,7 +108,6 @@ function LoginPage() {
   const { user, ready, login } = useAuth();
   const navigate = useNavigate();
   
-  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -188,22 +187,6 @@ function LoginPage() {
       </AppShell>
     );
   }
-
-  const submitEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const { loginWithMagicLink } = await import("@/lib/appwrite/account");
-      await loginWithMagicLink(email);
-      setMagicLinkSent(true);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to send magic link. Please check your email.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const submitGoogle = () => {
     loginWithGoogle();
@@ -310,42 +293,6 @@ function LoginPage() {
         />
 
         <Surface className="p-4 sm:p-5 backdrop-blur-2xl bg-card/95 shadow-2xl border-white/40 dark:border-white/10">
-          <form onSubmit={submitEmail} className="mb-4">
-            <div className="space-y-3">
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <input
-                  type="email"
-                  placeholder="Enter your email to login"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-3 text-[0.95rem] font-medium outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  required
-                  disabled={magicLinkSent}
-                />
-              </div>
-              {magicLinkSent ? (
-                <div className="w-full rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-3 text-center text-[0.9rem] font-medium text-green-600 dark:text-green-400">
-                  ✅ Secure login link sent to your email! Please check your inbox.
-                </div>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={loading || !email}
-                  className="flex w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 py-3 text-[0.95rem] font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.99] disabled:opacity-50"
-                >
-                  {loading ? "Sending..." : "Continue with Email"}
-                </button>
-              )}
-            </div>
-          </form>
-
-          <div className="relative mb-4 flex items-center">
-            <div className="flex-grow border-t border-border"></div>
-            <span className="bg-card px-3 text-xs text-muted-foreground">OR</span>
-            <div className="flex-grow border-t border-border"></div>
-          </div>
-
           <button
             type="button"
             onClick={submitGoogle}

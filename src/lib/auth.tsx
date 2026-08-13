@@ -109,16 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         let currentUser = await getCurrentUser();
 
-        if (!currentUser) {
-          try {
-            const saved = localStorage.getItem("bms_user");
-            if (saved) {
-              currentUser = JSON.parse(saved);
-            }
-          } catch {
-            /* ignore */
-          }
-        }
+        // SECURITY FIX: Do not fall back to localStorage if getCurrentUser returns null.
+        // If the user's session is dead or they were rejected from the DB, they must be logged out.
 
         if (currentUser) {
           setRealUser(currentUser as User);

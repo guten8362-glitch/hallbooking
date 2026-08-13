@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/auth";
 import { ImageCarousel } from "@/components/ImageCarousel";
 
 export const Route = createFileRoute("/auditoriums/")({
-  loader: () => fetchAuditoriums(),
   head: () => ({
     meta: [
       { title: "Select an Auditorium — Central Hall Booking" },

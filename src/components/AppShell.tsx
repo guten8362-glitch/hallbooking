@@ -225,8 +225,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         className={cn(
           "mx-auto w-full touch-pan-y",
           isDragging ? "" : slideAnimClass,
-          pathname === "/login" ? "max-w-md px-4 flex-1 flex flex-col justify-center py-2" : "max-w-5xl px-4 sm:px-6 pt-6 sm:pt-10",
-          showUserUI ? "pb-36 sm:pb-44" : "pb-10"
+          pathname === "/login" ? "max-w-none w-full px-0 flex-1 flex flex-col justify-center py-0" : "max-w-5xl px-4 sm:px-6 pt-6 sm:pt-10",
+          showUserUI ? "pb-36 sm:pb-44" : ""
         )}
         style={{
           transform: isDragging && touchDeltaX ? `translate3d(${touchDeltaX * 0.75}px, 0px, 0px)` : "none",

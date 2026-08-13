@@ -61,12 +61,12 @@ export function AuditoriumsIndex() {
       <PageTitle
         eyebrow="Step 1 of 4"
         title="Select a Venue"
-        subtitle="Choose a shared campus venue or AV hall for your event."
+        subtitle="Choose a shared campus venue for your event."
       />
 
       <div className="space-y-4">
         {visibleAuditoriums.map((a, i) => {
-          const isAVRoom = a.id === "av-room" || a.name.toLowerCase().includes("av room");
+
 
           return (
             <Link
@@ -97,11 +97,7 @@ export function AuditoriumsIndex() {
                       {a.name}
                     </h3>
                   </div>
-                  {isAVRoom && (
-                    <span className="inline-flex shrink-0 items-center gap-1 px-2 py-0.5 text-[0.68rem] font-bold text-emerald-700 bg-emerald-100 rounded-full dark:bg-emerald-950/40 dark:text-emerald-300">
-                      <Sparkles className="h-3 w-3" /> Audio Visual
-                    </span>
-                  )}
+
                 </div>
                 <p className="flex items-center gap-1.5 text-[0.82rem] sm:text-[0.85rem] text-muted-foreground truncate">
                   <Users className="size-3.5 shrink-0" /> <span className="truncate">Capacity {a.capacity} · {a.tagline}</span>

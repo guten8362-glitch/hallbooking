@@ -208,6 +208,12 @@ function LoginPage() {
       window.location.replace(window.location.pathname);
     } catch (err: any) {
       console.error(err);
+      setError("Invalid OTP or expired.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (ready && user && !magicLinkLoading) {
       sessionStorage.setItem("justLoggedIn", "true");

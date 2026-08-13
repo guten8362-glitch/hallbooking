@@ -571,7 +571,7 @@ function Admin() {
       </div>
 
       {/* Request Details Modal */}
-      {selectedBooking && createPortal(
+      {selectedBooking && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8">
             <div className="mb-4 flex items-start justify-between">
@@ -625,7 +625,7 @@ function Admin() {
       )}
 
       {/* Rejection Modal with Category & Purpose Explanation */}
-      {rejectionModalBooking && createPortal(
+      {rejectionModalBooking && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8">
             <h2 className="text-[1.15rem] font-semibold text-foreground">
@@ -686,7 +686,7 @@ function Admin() {
               </button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
     </AppShell>
   );

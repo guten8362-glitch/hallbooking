@@ -220,7 +220,7 @@ function LoginPage() {
     setError("");
     try {
       await account.createSession(otpUserId, otp);
-      window.location.replace(window.location.pathname);
+      navigate({ to: window.location.pathname });
     } catch (err: any) {
       console.error("OTP verification error:", err);
       setError(err.message || "Invalid OTP or expired.");
@@ -233,7 +233,7 @@ function LoginPage() {
     if (ready && user && !magicLinkLoading) {
       sessionStorage.setItem("justLoggedIn", "true");
       const targetPath = getDefaultRouteForUser(user);
-      window.location.href = targetPath;
+      navigate({ to: targetPath });
     }
   }, [ready, user, navigate, magicLinkLoading]);
 
@@ -244,7 +244,7 @@ function LoginPage() {
         try {
           await account.updateMagicURLSession(userId, secret);
           // Reload without query params so it enters the standard auth flow
-          window.location.replace(window.location.pathname);
+          navigate({ to: window.location.pathname });
         } catch (err: any) {
           console.error("Magic link auth failed:", err);
           setError(err.message || "Invalid or expired magic link.");

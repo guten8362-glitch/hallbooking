@@ -12,9 +12,15 @@ export interface Auditorium {
   facilities: string[];
   about: string;
 }
+let cachedAuditoriums: Auditorium[] | null = null;
+let fetchPromise: Promise<Auditorium[]> | null = null;
 
-export const fetchAuditoriums = async (): Promise<Auditorium[]> => {
-  try {
+export const fetchAuditoriums = async (force: boolean = false): Promise<Auditorium[]> => {
+  if (!force && cachedAuditoriums) return cachedAuditoriums;
+  if (!force && fetchPromise) return fetchPromise;
+
+  fetchPromise = (async () => {
+    try {
     const data = await listHalls();
     console.log("DB Halls Data from Appwrite:", data);
     if (Array.isArray(data)) {
@@ -44,11 +50,16 @@ export const fetchAuditoriums = async (): Promise<Auditorium[]> => {
           about: h.about || h.description || ""
         };
       });
+      cachedAuditoriums = mapped;
+      return mapped;
     }
   } catch (err) {
     console.error("fetchAuditoriums Appwrite database error:", err);
   }
   return [];
+  })();
+  
+  return fetchPromise;
 };
 
 export const fetchAuditorium = async (id: string): Promise<Auditorium | undefined> => {

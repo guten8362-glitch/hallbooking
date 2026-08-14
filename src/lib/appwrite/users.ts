@@ -31,7 +31,7 @@ export const addUserToDatabase = async (newUser: {
   }
 };
 
-export const getAllUsersFromDatabase = async (): Promise<User[]> => {
+export const getAllUsersFromDatabase = async (): Promise<any[]> => {
   const apiKey = import.meta.env.VITE_APPWRITE_API_KEY;
   if (apiKey) {
     try {
@@ -49,7 +49,8 @@ export const getAllUsersFromDatabase = async (): Promise<User[]> => {
           institution: doc.institution || 'MVIT',
           role: doc.role || 'user',
           fcm_token: doc.fcm_token || null,
-          $id: doc.user_id || doc.userId || doc.auth_id || doc.$id
+          $id: doc.user_id || doc.userId || doc.auth_id || doc.$id,
+          docId: doc.$id
         }));
       }
     } catch (err) {
@@ -69,7 +70,8 @@ export const getAllUsersFromDatabase = async (): Promise<User[]> => {
       institution: doc.institution || 'MVIT',
       role: doc.role || 'user',
       fcm_token: doc.fcm_token || null,
-      $id: doc.user_id || doc.userId || doc.auth_id || doc.$id
+      $id: doc.user_id || doc.userId || doc.auth_id || doc.$id,
+      docId: doc.$id
     }));
   } catch (error) {
     console.warn('Appwrite: Error fetching users, attempting session recovery:', error);
@@ -86,7 +88,8 @@ export const getAllUsersFromDatabase = async (): Promise<User[]> => {
         institution: doc.institution || 'MVIT',
         role: doc.role || 'user',
         fcm_token: doc.fcm_token || null,
-        $id: doc.user_id || doc.userId || doc.auth_id || doc.$id
+        $id: doc.user_id || doc.userId || doc.auth_id || doc.$id,
+        docId: doc.$id
       }));
     } catch (retryErr) {
       console.error('Appwrite: Error fetching users after recovery:', retryErr);
@@ -156,6 +159,53 @@ export const updateUserFCMToken = async (email: string, token: string, userAuthI
 
     if (targetUser) {
       try {
+        const apiKey = import.meta.env.VITE_APPWRITE_API_KEY;
+        if (apiKey) {
+          const allUsers = await getAllUsersFromDatabase();
+          const targetDocId = targetUser.$id || targetUser.docId;
+          
+          // Cleanup other users with the same token
+          const otherUsers = allUsers.filter(u => u.fcm_token === token && u.docId !== targetDocId);
+          
+          for (const ou of otherUsers) {
+            if (ou.docId) {
+              // Clear token from DB
+              fetch(`${APPWRITE_CONFIG.endpoint}/databases/${APPWRITE_CONFIG.databaseId}/collections/${APPWRITE_CONFIG.collections.users}/documents/${ou.docId}`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+                  'X-Appwrite-Key': apiKey,
+                },
+                body: JSON.stringify({ data: { fcm_token: null } })
+              }).catch(() => {});
+            }
+            
+            // Delete Appwrite Target
+            const targetId = `fcm_${ou.$id}_${token.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '')}`;
+            fetch(`${APPWRITE_CONFIG.endpoint}/users/${ou.$id}/targets/${targetId}`, {
+              method: 'DELETE',
+              headers: {
+                'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+                'X-Appwrite-Key': apiKey,
+              }
+            }).catch(() => {});
+          }
+
+          // Update current user's DB doc with the new token
+          if (targetDocId) {
+            fetch(`${APPWRITE_CONFIG.endpoint}/databases/${APPWRITE_CONFIG.databaseId}/collections/${APPWRITE_CONFIG.collections.users}/documents/${targetDocId}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+                'X-Appwrite-Key': apiKey,
+              },
+              body: JSON.stringify({ data: { fcm_token: token } })
+            }).catch(() => {});
+          }
+        }
+
         await registerPushTargetClientSide(token);
         return true;
       } catch (err) {

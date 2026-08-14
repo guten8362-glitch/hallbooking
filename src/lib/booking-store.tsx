@@ -38,7 +38,9 @@ const notifyRole = async (role: string, subject: string, content: string, target
     // Send Push Notification with Email Fallback
     if (userIds.length > 0) {
       try {
-        const pushRes = await sendPushNotification(userIds, subject, content, undefined, targetInstitution);
+        const origin = window.location.origin;
+        const url = role === 'admin' ? `${origin}/admin` : role === 'coordinator' ? `${origin}/coordinator` : `${origin}/`;
+        const pushRes = await sendPushNotification(userIds, subject, content, { url }, targetInstitution);
         if (!pushRes) {
           console.warn("Push notification target missing. Attempting Email notification fallback...");
           await sendEmailNotification(userIds, subject, content);
@@ -595,9 +597,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
               time: `${b?.startTime || ''} - ${b?.endTime || ''}`,
             }).catch((emailErr) => console.error("Email sending failed", emailErr));
           }
-          if (b?.institution !== 'MVIT') {
-            notifyRole('coordinator', `✅ Confirmed: ${b?.eventName || 'Booking'}`, `The external booking for ${applicantName} has been finalized by the Principal.\n${details}`, b.institution);
-          }
+          notifyRole('coordinator', `✅ Confirmed: ${b?.eventName || 'Booking'}`, `The booking for ${applicantName} has been finalized by the Principal.\n${details}`, b?.institution);
           
           // Notify the Organizer (Stores / Hall in-charge) to arrange facilities
           notifyRole('organizer', `✅ Prepare Venue: ${b?.eventName || 'Booking'}`, `The Principal approved this booking for ${applicantName}.\nPlease arrange chairs and facilities.\n${details}`);

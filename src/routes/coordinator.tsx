@@ -475,7 +475,8 @@ export function CoordinatorPortal() {
         </div>
       )}
 
-      {approvalModalBooking && typeof document !== "undefined" && createPortal(
+      {/* Forward/Approve Modal */}
+      {approvalModalBooking && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-md bg-card p-6 rounded-3xl border shadow-2xl">
             <h2 className="text-lg font-bold mb-1">{isAdmin ? "Confirm & Finalize Request" : "Approve & Forward Request"} ({approvalModalBooking.id})</h2>
@@ -490,10 +491,11 @@ export function CoordinatorPortal() {
               </div>
             </div>
           </div>
-        </div>, document.body
+        </div>
       )}
 
-      {rejectionModalBooking && typeof document !== "undefined" && createPortal(
+      {/* Reject Modal */}
+      {rejectionModalBooking && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-md bg-card p-6 rounded-3xl border shadow-2xl">
             <h2 className="text-lg font-bold mb-1">Decline Request ({rejectionModalBooking.id})</h2>
@@ -518,10 +520,11 @@ export function CoordinatorPortal() {
               </div>
             </div>
           </div>
-        </div>, document.body
+        </div>
       )}
 
-      {selectedBooking && typeof document !== "undefined" && createPortal(
+      {/* Request Details Modal */}
+      {selectedBooking && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className="w-full max-w-lg bg-card p-6 rounded-3xl border shadow-2xl">
             <div className="flex items-start justify-between mb-4">
@@ -542,7 +545,7 @@ export function CoordinatorPortal() {
               <button onClick={() => setSelectedBooking(null)} className="px-4 py-2 rounded-xl bg-muted text-xs font-bold">Close</button>
             </div>
           </div>
-        </div>, document.body
+        </div>
       )}
     </AppShell>
   );

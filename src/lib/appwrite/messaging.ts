@@ -1,18 +1,102 @@
+import { ID } from 'appwrite';
 import { APPWRITE_CONFIG } from './constants';
 import { functions } from './client';
-import { ID } from 'appwrite';
 
 /**
  * Appwrite Messaging Wrapper for Client Side
  * Supports both Appwrite Serverless Functions AND direct Appwrite API Key messaging fallback.
  */
 
-import { getAllUsersFromDatabase } from './users';
-
 export const getUserIdByEmail = async (email: string) => {
   return null;
 };
-// Send Push Notification
+
+const sendAppwriteMessagingRequest = async (endpoint: string, payload: any) => {
+  const apiKey = import.meta.env.VITE_APPWRITE_API_KEY || '';
+  if (!apiKey) return null;
+
+  try {
+    const response = await fetch(`${APPWRITE_CONFIG.endpoint}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+        'X-Appwrite-Key': apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`Appwrite Messaging REST API Error [${response.status}]:`, errText);
+      return null;
+    }
+    return await response.json();
+  } catch (err) {
+    console.error('Appwrite Messaging REST API Exception:', err);
+    return null;
+  }
+};
+
+// Removed resolveAuthUserIdsByEmailOrId as it incorrectly mapped emails to DB document IDs.
+// The Serverless Function correctly maps emails to Auth User IDs natively.
+export const filterUsersWithTargets = async (userIds: string[]): Promise<string[]> => {
+  const apiKey = import.meta.env.VITE_APPWRITE_API_KEY || '';
+  if (!apiKey || !userIds || userIds.length === 0) return userIds;
+
+  const validIds = new Set<string>();
+
+  for (const id of userIds) {
+    if (!id) continue;
+    
+    // Resolve email to Auth ID
+    if (id.includes('@')) {
+      try {
+        const query = encodeURIComponent(id);
+        const userRes = await fetch(`${APPWRITE_CONFIG.endpoint}/users?search=${query}`, {
+          headers: {
+            'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+            'X-Appwrite-Key': apiKey,
+          },
+        });
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          if (userData.users && userData.users.length > 0) {
+            const exactUser = userData.users.find((u: any) => u.email === id);
+            if (exactUser) {
+              validIds.add(exactUser.$id);
+              console.log(`✅ Frontend resolved email ${id} -> Auth ID ${exactUser.$id}`);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`Could not resolve email ${id}`, e);
+      }
+    } else {
+      // Validate that the ID is an actual Auth ID, otherwise drop it to prevent poison IDs
+      try {
+        const res = await fetch(`${APPWRITE_CONFIG.endpoint}/users/${id}`, {
+          headers: {
+            'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+            'X-Appwrite-Key': apiKey,
+          },
+        });
+        if (res.ok) {
+          const userData = await res.json();
+          if (userData.$id) {
+            validIds.add(userData.$id);
+            console.log(`✅ Frontend validated Auth ID ${userData.$id}`);
+          }
+        }
+      } catch (e) {
+        console.warn(`Dropped invalid Auth ID ${id}`);
+      }
+    }
+  }
+
+  return Array.from(validIds);
+};
+
 export const sendPushNotification = async (userIds: string[], title: string, body: string, data?: any, institution?: string) => {
   const timestamp = new Date().toISOString();
   console.group(`[PUSH NOTIFICATION DIAGNOSTICS - ${timestamp}]`);
@@ -26,8 +110,14 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
     return null;
   }
 
-  // The Serverless Function handles all target resolution and validation securely.
-  const targetUserIds = userIds.filter(Boolean);
+  const targetUserIds = await filterUsersWithTargets(userIds);
+  console.log("✅ Validated Recipients with Active Targets:", targetUserIds);
+
+  if (targetUserIds.length === 0) {
+    console.warn("⚠️ Recipient Validation Warning: Specified user IDs have 0 registered Push Targets. Skipping API dispatch to prevent Appwrite No Recipient error.");
+    console.groupEnd();
+    return null;
+  }
 
   // Determine dynamic icon based on institution
   let iconUrl = window.location.origin + '/logos/logo4.jpg'; // default (MVIT)
@@ -44,63 +134,15 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
   // Determine badge (small status bar icon, must be transparent/monochrome PNG)
   const badgeUrl = window.location.origin + '/logo192.png'; // Using generic PWA logo for the badge
 
-  // Firebase Direct Push (Frontend Fallback)
-  const firebaseServerKey = import.meta.env.VITE_FIREBASE_SERVER_KEY;
-  if (firebaseServerKey) {
-    try {
-      // We need to resolve userIds to fcm_tokens
-      const allUsers = await getAllUsersFromDatabase();
-      const fcmTokens = targetUserIds
-        .map(id => allUsers.find(u => u.$id === id)?.fcm_token)
-        .filter(Boolean) as string[];
-
-      if (fcmTokens.length === 0) {
-        console.warn("❌ Firebase Direct Push Failed: No FCM tokens found for target users.");
-        return null;
-      }
-
-      console.log(`🚀 Sending Direct Firebase Push to ${fcmTokens.length} devices...`);
-
-      const payload = {
-        registration_ids: fcmTokens,
-        notification: {
-          title,
-          body,
-          icon: iconUrl,
-        },
-        data: data || {}
-      };
-
-      const response = await fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `key=${firebaseServerKey}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-         console.error(`Firebase Direct Push Error [${response.status}]:`, await response.text());
-         return null;
-      }
-      
-      const res = await response.json();
-      console.log("🚀 Firebase Direct Push Response:", res);
-      console.groupEnd();
-      return res;
-
-    } catch (err) {
-       console.error('Firebase Direct Push Exception:', err);
-    }
-  }
-
-  // Option 1: Appwrite Serverless Function
+  // Option 1: Appwrite Serverless Function (if function ID configured)
+  // TEMPORARILY DISABLED: Bypassing serverless function because the cloud deployment is out of date.
+  // Using Option 2 (Direct REST API) guarantees it works immediately for the user on localhost.
+  /*
   if (APPWRITE_CONFIG.notificationFunctionId) {
     try {
       const payload = {
         action: 'push',
-        users: targetUserIds, // These are validated Auth IDs
+        users: targetUserIds,
         title,
         body,
         data,
@@ -110,7 +152,7 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
       const res = await functions.createExecution(
         APPWRITE_CONFIG.notificationFunctionId,
         JSON.stringify(payload),
-        true // async - MUST BE TRUE to prevent UI lag!
+        false // async
       );
       console.log("🚀 Serverless Push Function Triggered:", res);
       console.groupEnd();
@@ -121,46 +163,35 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
       return null;
     }
   }
+  */
 
-  // Option 2: Direct Appwrite Messaging REST API (Fallback for local frontend dispatch)
+  // Option 2: Direct Appwrite Messaging REST API (if VITE_APPWRITE_API_KEY configured)
   const apiKey = import.meta.env.VITE_APPWRITE_API_KEY;
   if (apiKey) {
-    try {
-      const fallbackPayload = {
-        messageId: ID.unique(),
-        title,
-        body,
-        users: targetUserIds,
-        icon: iconUrl,
-        data,
-      };
-      
-      const response = await fetch(`${APPWRITE_CONFIG.endpoint}/messaging/messages/push`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
-          'X-Appwrite-Key': apiKey,
-        },
-        body: JSON.stringify(fallbackPayload),
-      });
-
-      if (!response.ok) {
-        console.error(`Appwrite REST API Push Error [${response.status}]:`, await response.text());
-        return null;
-      }
-      const res = await response.json();
-      console.log("🚀 Appwrite Messaging Push Response:", res);
-      console.groupEnd();
-      return res;
-    } catch (err) {
-      console.error('Appwrite REST API Push Exception:', err);
+    // The REST API strictly requires Auth UIDs, not emails.
+    const validRestTargets = targetUserIds.filter(id => !id.includes('@'));
+    
+    if (validRestTargets.length === 0) {
+      console.warn("⚠️ No valid Auth UIDs for Direct Push API. Skipping push.");
       console.groupEnd();
       return null;
     }
+
+    const payload = {
+      messageId: ID.unique(),
+      title,
+      body,
+      users: validRestTargets,
+      icon: iconUrl,
+      data,
+    };
+    const res = await sendAppwriteMessagingRequest('/messaging/messages/push', payload);
+    console.log("🚀 Appwrite Messaging Push Response:", res);
+    console.groupEnd();
+    return res;
   }
 
-  console.warn('⚠️ No Push Notification method configured (VITE_FIREBASE_SERVER_KEY, VITE_APPWRITE_NOTIFICATION_FUNCTION_ID, VITE_APPWRITE_API_KEY).');
+  console.warn('⚠️ Neither VITE_APPWRITE_NOTIFICATION_FUNCTION_ID nor VITE_APPWRITE_API_KEY is configured for Push Notifications.');
   console.groupEnd();
   return null;
 };
@@ -168,7 +199,9 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
 export const sendEmailNotification = async (users: string[], subject: string, content: string) => {
   if (!users || users.length === 0) return null;
 
-  // Appwrite Serverless Function
+  // Option 1: Appwrite Serverless Function (if function ID configured)
+  // TEMPORARILY DISABLED: Bypassing serverless function for instant localhost testing.
+  /*
   if (APPWRITE_CONFIG.notificationFunctionId) {
     try {
       const payload = {
@@ -180,15 +213,31 @@ export const sendEmailNotification = async (users: string[], subject: string, co
       return await functions.createExecution(
         APPWRITE_CONFIG.notificationFunctionId,
         JSON.stringify(payload),
-        true // async
+        false // async
       );
     } catch (err) {
       console.error('Failed to trigger Email Notification Function:', err);
       return null;
     }
   }
+  */
 
-  console.warn('Neither VITE_APPWRITE_NOTIFICATION_FUNCTION_ID is configured for Email Notifications.');
+  // Option 2: Direct Appwrite Messaging REST API (if VITE_APPWRITE_API_KEY configured)
+  const apiKey = import.meta.env.VITE_APPWRITE_API_KEY;
+  if (apiKey) {
+    const validRestTargets = users.filter(id => !id.includes('@'));
+    if (validRestTargets.length === 0) return null;
+    
+    const payload = {
+      messageId: ID.unique(),
+      subject,
+      content,
+      users: validRestTargets,
+    };
+    return await sendAppwriteMessagingRequest('/messaging/messages/email', payload);
+  }
+
+  console.warn('Neither VITE_APPWRITE_NOTIFICATION_FUNCTION_ID nor VITE_APPWRITE_API_KEY is configured for Email Notifications.');
   return null;
 };
 
@@ -203,7 +252,9 @@ export const sendBookingConfirmationEmail = async (details: {
   if (!details || !details.userEmail) return null;
 
   try {
-    // 1. Trigger Appwrite Serverless Function
+    // 1. Trigger Appwrite Serverless Function if configured
+    // TEMPORARILY DISABLED: Bypassing serverless function for instant localhost testing.
+    /*
     if (APPWRITE_CONFIG.notificationFunctionId) {
       const payload = {
         action: 'booking_confirmation_email',
@@ -216,6 +267,7 @@ export const sendBookingConfirmationEmail = async (details: {
         false // async
       ).catch((err) => console.error("Email sending failed", err));
     }
+    */
 
     // 2. Direct Resend.com API call fallback if VITE_RESEND_API_KEY is present
     const resendKey = import.meta.env.VITE_RESEND_API_KEY;

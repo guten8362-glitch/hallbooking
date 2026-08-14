@@ -131,19 +131,12 @@ export const updateUserFCMToken = async (email: string, token: string, userAuthI
 
     if (targetUser) {
       try {
-        await databases.updateDocument(
-          APPWRITE_CONFIG.databaseId,
-          APPWRITE_CONFIG.collections.users,
-          targetUser.$id,
-          { fcm_token: token }
-        );
-        console.log('Successfully saved FCM token to user DB');
-      } catch (dbErr) {
-        console.warn('Could not update fcm_token attribute on user DB document:', dbErr);
+        await registerPushTargetClientSide(token);
+        return true;
+      } catch (err) {
+        console.error('Appwrite: Error updating FCM token securely', err);
+        return false;
       }
-
-      await registerPushTargetClientSide(token);
-      return true;
     }
     return false;
   } catch (error) {

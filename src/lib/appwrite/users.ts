@@ -32,6 +32,31 @@ export const addUserToDatabase = async (newUser: {
 };
 
 export const getAllUsersFromDatabase = async (): Promise<User[]> => {
+  const apiKey = import.meta.env.VITE_APPWRITE_API_KEY;
+  if (apiKey) {
+    try {
+      const response = await fetch(`${APPWRITE_CONFIG.endpoint}/databases/${APPWRITE_CONFIG.databaseId}/collections/${APPWRITE_CONFIG.collections.users}/documents?limit=1000`, {
+        headers: {
+          'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+          'X-Appwrite-Key': apiKey,
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.documents.map((doc: any) => ({
+          email: doc.mail_id || doc.email || '',
+          name: doc.name || '',
+          institution: doc.institution || 'MVIT',
+          role: doc.role || 'user',
+          fcm_token: doc.fcm_token || null,
+          $id: doc.user_id || doc.userId || doc.auth_id || doc.$id
+        }));
+      }
+    } catch (err) {
+      console.warn('Appwrite: Admin API fallback failed, trying client SDK...', err);
+    }
+  }
+
   try {
     const response = await databases.listDocuments(
       APPWRITE_CONFIG.databaseId,

@@ -607,7 +607,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           notifyRole('coordinator', `✅ Confirmed: ${b?.eventName || 'Booking'}`, `The booking for ${applicantName} has been finalized by the Principal.\n${details}`, b?.institution, `${window.location.origin}/bookings/${b?.id}/confirmed`, user?.$id);
           
           // Notify the Organizer (Stores / Hall in-charge) to arrange facilities
-          notifyRole('organizer', `✅ Prepare Venue: ${b?.eventName || 'Booking'}`, `The Principal approved this booking for ${applicantName}.\nPlease arrange chairs and facilities.\n${details}`, undefined, `${window.location.origin}/bookings/${b?.id}`, user?.$id);
+          notifyRole('organizer', `✅ Prepare Venue: ${b?.eventName || 'Booking'}`, `The Principal approved this booking for ${applicantName}.\nPlease arrange chairs and facilities.\n${details}`, b?.institution, `${window.location.origin}/bookings/${b?.id}`, user?.$id);
         } else if (stage === "rejected") {
           if (!updateData.rejectionReason) {
             updateData.rejectionReason = "Rejected by authority";

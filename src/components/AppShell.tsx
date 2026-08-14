@@ -58,6 +58,32 @@ export function AppShell({ children }: { children: ReactNode }) {
           if (payload.targetUserEmail && payload.targetUserEmail !== user.email) return;
 
           console.log("[IN-APP NOTIFICATION RECEIVED]", payload.title || payload.message);
+
+          if ("Notification" in window) {
+            if (Notification.permission === "granted") {
+              try {
+                new Notification(payload.title || "New Notification", {
+                  body: payload.message || "",
+                  icon: "/logo192.png",
+                });
+              } catch (e) {
+                console.warn("Native Notification failed", e);
+              }
+            } else if (Notification.permission !== "denied") {
+              Notification.requestPermission().then(p => {
+                if (p === "granted") {
+                  try {
+                    new Notification(payload.title || "New Notification", {
+                      body: payload.message || "",
+                      icon: "/logo192.png",
+                    });
+                  } catch (e) {
+                    console.warn("Native Notification failed", e);
+                  }
+                }
+              });
+            }
+          }
         }
       });
     } catch (err) {

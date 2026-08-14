@@ -582,7 +582,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             bookingId: id, 
             type: "success" 
           });
-          const recipients = [requesterEmail, b?.requesterId].filter(Boolean) as string[];
+          const recipients = [requesterEmail, b?.requesterId]
+            .filter(Boolean)
+            .filter(r => r !== user?.$id && r !== user?.email) as string[];
           if (recipients.length > 0) {
             sendPushNotification(
               recipients, 
@@ -628,7 +630,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             bookingId: id, 
             type: "error" 
           });
-          const recipients = [requesterEmail, b?.requesterId].filter(Boolean) as string[];
+          const recipients = [requesterEmail, b?.requesterId]
+            .filter(Boolean)
+            .filter(r => r !== user?.$id && r !== user?.email) as string[];
           if (recipients.length > 0) {
             sendPushNotification(
               recipients, 

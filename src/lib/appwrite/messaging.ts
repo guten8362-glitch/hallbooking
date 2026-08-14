@@ -1,6 +1,7 @@
 import { ID } from 'appwrite';
 import { APPWRITE_CONFIG } from './constants';
 import { functions } from './client';
+import { getAllUsersFromDatabase } from './users';
 
 /**
  * Appwrite Messaging Wrapper for Client Side
@@ -133,6 +134,54 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
 
   // Determine badge (small status bar icon, must be transparent/monochrome PNG)
   const badgeUrl = window.location.origin + '/logo192.png'; // Using generic PWA logo for the badge
+
+  // Firebase Direct Push (Frontend Fallback)
+  const firebaseServerKey = import.meta.env.VITE_FIREBASE_SERVER_KEY;
+  if (firebaseServerKey) {
+    try {
+      // We need to resolve userIds to fcm_tokens
+      const allUsers = await getAllUsersFromDatabase();
+      const fcmTokens = targetUserIds
+        .map(id => allUsers.find(u => u.$id === id)?.fcm_token)
+        .filter(Boolean) as string[];
+
+      if (fcmTokens.length === 0) {
+        console.warn("❌ Firebase Direct Push Failed: No FCM tokens found for target users.");
+      } else {
+        console.log(`🚀 Sending Direct Firebase Push to ${fcmTokens.length} devices...`);
+
+        const payload = {
+          registration_ids: fcmTokens,
+          notification: {
+            title,
+            body,
+            icon: iconUrl,
+          },
+          data: data || {}
+        };
+
+        const response = await fetch('https://fcm.googleapis.com/fcm/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `key=${firebaseServerKey}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+           console.error(`Firebase Direct Push Error [${response.status}]:`, await response.text());
+        } else {
+          const res = await response.json();
+          console.log("🚀 Firebase Direct Push Response:", res);
+          console.groupEnd();
+          return res;
+        }
+      }
+    } catch (err) {
+       console.error('Firebase Direct Push Exception:', err);
+    }
+  }
 
   // Option 1: Appwrite Serverless Function (if function ID configured)
   // TEMPORARILY DISABLED: Bypassing serverless function because the cloud deployment is out of date.

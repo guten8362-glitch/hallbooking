@@ -46,10 +46,20 @@ self.addEventListener('notificationclick', function(event) {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
-      // If we have a URL passed in the notification data, try to open that. Otherwise default to root.
-      const urlToOpen = (event.notification.data && event.notification.data.url) || self.registration.scope;
+      // Extract URL. Firebase sometimes nests data in FCM_MSG
+      let urlToOpen = self.registration.scope;
       
-      // Check if there is already a window/tab open with the target URL
+      if (event.notification.data) {
+        if (event.notification.data.url) {
+          urlToOpen = event.notification.data.url;
+        } else if (event.notification.data.FCM_MSG && event.notification.data.FCM_MSG.data && event.notification.data.FCM_MSG.data.url) {
+          urlToOpen = event.notification.data.FCM_MSG.data.url;
+        }
+      }
+      
+      console.log('[firebase-messaging-sw.js] Navigating to:', urlToOpen);
+      
+      // Check if there is already a window/tab open
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
         // If it's the exact same URL, focus it
@@ -62,8 +72,7 @@ self.addEventListener('notificationclick', function(event) {
       if (windowClients.length > 0) {
         const client = windowClients[0];
         if ('navigate' in client && 'focus' in client) {
-          client.navigate(urlToOpen);
-          return client.focus();
+          return client.navigate(urlToOpen).then(c => c.focus());
         }
       }
       

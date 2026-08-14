@@ -10,7 +10,7 @@ import { getStoredImpersonatedUser } from "./services/impersonation";
 import { APPWRITE_CONFIG } from "./appwrite/constants";
 import { useAuth } from "./auth";
 
-const notifyRole = async (role: string, subject: string, content: string, targetInstitution?: string) => {
+const notifyRole = async (role: string, subject: string, content: string, targetInstitution?: string, specificUrl?: string) => {
   try {
     const users = await getAllUsersFromDatabase();
     
@@ -39,7 +39,7 @@ const notifyRole = async (role: string, subject: string, content: string, target
     if (userIds.length > 0) {
       try {
         const origin = window.location.origin;
-        const url = role === 'admin' ? `${origin}/admin` : role === 'coordinator' ? `${origin}/coordinator` : `${origin}/`;
+        const url = specificUrl || (role === 'admin' ? `${origin}/admin` : role === 'coordinator' ? `${origin}/coordinator` : `${origin}/`);
         const pushRes = await sendPushNotification(userIds, subject, content, { url }, targetInstitution);
         if (!pushRes) {
           console.warn("Push notification target missing. Attempting Email notification fallback...");
@@ -510,9 +510,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           const details = `🏢 Venue: ${audName}\n📅 Date: ${displayDate}\n🕒 Time: ${booking.startTime} - ${booking.endTime}\n👤 By: ${booking.coordinator} (${booking.institution})`;
           
           if (initialStage === 'pending_super_admin') {
-            notifyRole('admin', `🎟️ New Booking Request: ${booking.eventName}`, details);
+            notifyRole('admin', `🆕 New Booking Request: ${booking.eventName}`, details, undefined, `${window.location.origin}/bookings/${booking.id}`);
           } else {
-            notifyRole('coordinator', `🎟️ New Booking Request: ${booking.eventName}`, details, booking.institution);
+            notifyRole('coordinator', `🆕 New Booking Request: ${booking.eventName}`, details, booking.institution, `${window.location.origin}/bookings/${booking.id}`);
           }
 
           return booking;
@@ -581,7 +581,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             sendPushNotification(
               recipients, 
               `✅ Booking Approved: ${b.eventName || 'Booking'}`, 
-              `Hello ${applicantName},\n\nYour auditorium booking has been APPROVED by ${approver}.\n\n${details}`
+              `Hello ${applicantName},\n\nYour auditorium booking has been APPROVED by ${approver}.\n\n${details}`,
+              { url: `${window.location.origin}/bookings/${b.id}/confirmed` }
             );
           }
 
@@ -597,10 +598,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
               time: `${b?.startTime || ''} - ${b?.endTime || ''}`,
             }).catch((emailErr) => console.error("Email sending failed", emailErr));
           }
-          notifyRole('coordinator', `✅ Confirmed: ${b?.eventName || 'Booking'}`, `The booking for ${applicantName} has been finalized by the Principal.\n${details}`, b?.institution);
+          notifyRole('coordinator', `✅ Confirmed: ${b?.eventName || 'Booking'}`, `The booking for ${applicantName} has been finalized by the Principal.\n${details}`, b?.institution, `${window.location.origin}/bookings/${b?.id}/confirmed`);
           
           // Notify the Organizer (Stores / Hall in-charge) to arrange facilities
-          notifyRole('organizer', `✅ Prepare Venue: ${b?.eventName || 'Booking'}`, `The Principal approved this booking for ${applicantName}.\nPlease arrange chairs and facilities.\n${details}`);
+          notifyRole('organizer', `✅ Prepare Venue: ${b?.eventName || 'Booking'}`, `The Principal approved this booking for ${applicantName}.\nPlease arrange chairs and facilities.\n${details}`, undefined, `${window.location.origin}/bookings/${b?.id}`);
         } else if (stage === "rejected") {
           if (!updateData.rejectionReason) {
             updateData.rejectionReason = "Rejected by authority";
@@ -626,15 +627,16 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             sendPushNotification(
               recipients, 
               `❌ Booking Rejected: ${b.eventName || 'Booking'}`, 
-              `Hello ${applicantName},\n\nYour auditorium booking has been REJECTED.\nReason: ${updateData.rejectionReason}\nRejected By: ${rejector}\n\n${details}`
+              `Hello ${applicantName},\n\nYour auditorium booking has been REJECTED.\nReason: ${updateData.rejectionReason}\nRejected By: ${rejector}\n\n${details}`,
+              { url: `${window.location.origin}/bookings/${b.id}` }
             );
           }
           if (b?.institution !== 'MVIT') {
              // If it was rejected, notify coordinator of that institution too
-             notifyRole('coordinator', `❌ Rejected: ${b?.eventName || 'Booking'}`, `The external booking for ${applicantName} was rejected.\nReason: ${updateData.rejectionReason}\n${details}`, b?.institution);
+             notifyRole('coordinator', `❌ Rejected: ${b?.eventName || 'Booking'}`, `The external booking for ${applicantName} was rejected.\nReason: ${updateData.rejectionReason}\n${details}`, b?.institution, `${window.location.origin}/bookings/${b?.id}`);
           }
         } else if (stage === "pending_super_admin") {
-          notifyRole('admin', `⏳ Final Approval Needed: ${b?.eventName || 'Booking'}`, `Coordinator has forwarded this booking for your approval.\n${details}`);
+          notifyRole('admin', `⏳ Final Approval Needed: ${b?.eventName || 'Booking'}`, `Coordinator has forwarded this booking for your approval.\n${details}`, undefined, `${window.location.origin}/bookings/${b?.id}`);
         }
 
         try {

@@ -137,20 +137,7 @@ function Admin() {
   useEffect(() => {
     // SECURITY PATCH: Only fetch users if the current user is actually an admin.
     if (user && isAdminUser(user)) {
-      getAllUsersFromDatabase().then((allUsers) => {
-        let visibleUsers = allUsers;
-        const isIgslUser = (user.institution || "").toLowerCase() === "igsl" || (user.team || "").toLowerCase() === "igsl";
-        
-        if (!isIgslUser) {
-          visibleUsers = allUsers.filter(u => {
-            const uInst = (u.institution || "").toLowerCase();
-            const uTeam = (u.team || "").toLowerCase();
-            const uDept = (u.department || "").toLowerCase();
-            return uInst !== "igsl" && uTeam !== "igsl" && uDept !== "igsl";
-          });
-        }
-        setUsersList(visibleUsers);
-      });
+      getAllUsersFromDatabase().then(setUsersList);
     }
   }, [userAddedSuccess, user]);
 

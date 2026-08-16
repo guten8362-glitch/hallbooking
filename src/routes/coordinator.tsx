@@ -64,20 +64,7 @@ export function CoordinatorPortal() {
       getAllUsersFromDatabase().then((allUsers) => {
         // Coordinator can only see users from their institution
         const coordInst = (user?.institution || "").toLowerCase().trim();
-        let visibleUsers = allUsers.filter(u => (u.institution || "").toLowerCase().trim() === coordInst);
-        
-        // Hide IGSL support team from non-IGSL coordinators
-        const isIgslUser = (user?.institution || "").toLowerCase() === "igsl" || (user?.team || "").toLowerCase() === "igsl";
-        if (!isIgslUser) {
-          visibleUsers = visibleUsers.filter(u => {
-            const uInst = (u.institution || "").toLowerCase();
-            const uTeam = (u.team || "").toLowerCase();
-            const uDept = (u.department || "").toLowerCase();
-            return uInst !== "igsl" && uTeam !== "igsl" && uDept !== "igsl";
-          });
-        }
-        
-        setUsersList(visibleUsers);
+        setUsersList(allUsers.filter(u => (u.institution || "").toLowerCase().trim() === coordInst));
       });
     }
   }, [userAddedSuccess, user]);

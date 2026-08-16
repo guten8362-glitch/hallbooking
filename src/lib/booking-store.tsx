@@ -3,7 +3,7 @@ import { listBookings, createBooking, updateBooking, deleteBooking, createNotifi
 import { subscribeToBookings } from "./appwrite/realtime";
 import { fetchAuditoriums } from "./auditoriums";
 import type { Auditorium } from "./auditoriums";
-import { getUserIdByEmail, sendEmailNotification, sendBookingConfirmationEmail } from "./appwrite/messaging";
+import { getUserIdByEmail, sendPushNotification, sendEmailNotification, sendBookingConfirmationEmail } from "./appwrite/messaging";
 import { getAllUsersFromDatabase } from "./appwrite/users";
 import { recordAuditLog } from "./services/audit";
 import { getStoredImpersonatedUser } from "./services/impersonation";
@@ -41,7 +41,7 @@ const notifyRole = async (role: string, subject: string, content: string, target
       .flatMap(u => [(u as any).mail_id, u.email, u.user_id, u.$id])
       .filter((id): id is string => Boolean(id));
 
-    // Create Appwrite Notifications for each targeted user
+    // Create Appwrite Notifications (Database Collection) for each targeted user
     for (const u of targetUsers) {
       const uId = u.$id || u.user_id;
       if (uId) {
@@ -55,6 +55,21 @@ const notifyRole = async (role: string, subject: string, content: string, target
         } catch (err) {
           console.error("Failed to create appwrite notification for user", uId, err);
         }
+      }
+    }
+
+    // Send Push Notification via Appwrite Messaging with Email Fallback
+    if (userIds.length > 0) {
+      try {
+        const origin = window.location.origin;
+        const url = specificUrl || (role === 'admin' ? `${origin}/admin` : role === 'coordinator' ? `${origin}/coordinator` : `${origin}/`);
+        const pushRes = await sendPushNotification(userIds, subject, content, { url }, targetInstitution);
+        if (!pushRes) {
+          console.warn("Push notification target missing. Attempting Email notification fallback...");
+          await sendEmailNotification(userIds, subject, content);
+        }
+      } catch (err) {
+        console.error("Failed to send push/email notifications", err);
       }
     }
   } catch (err) {
@@ -521,6 +536,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             notifyRole('admin', `🆕 New Booking Request: ${booking.eventName}`, details, undefined, `${window.location.origin}/bookings/${booking.id}`, user?.$id);
           } else {
             notifyRole('coordinator', `🆕 New Booking Request: ${booking.eventName}`, details, booking.institution, `${window.location.origin}/bookings/${booking.id}`, user?.$id);
+            // Also explicitly notify admin that a new booking was made (even if pending coordinator)
+            notifyRole('admin', `🆕 New Booking Submitted: ${booking.eventName}`, `A new booking request is pending Coordinator approval.\n${details}`, undefined, `${window.location.origin}/admin`, user?.$id);
           }
 
           return booking;

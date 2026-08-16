@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 export const Route = createFileRoute("/review")({
   head: () => ({
     meta: [
-      { title: "Review your booking — Central Hall Booking" },
+      { title: "Review your booking — VenueX - Book My Space" },
       {
         name: "description",
         content: "Check your event details once before sending the request to the coordinator.",

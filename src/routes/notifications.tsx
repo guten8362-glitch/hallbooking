@@ -8,7 +8,7 @@ import { getStageInfo, useBookings } from "@/lib/booking-store";
 export const Route = createFileRoute("/notifications")({
   head: () => ({
     meta: [
-      { title: "Notifications — Central Hall Booking" },
+      { title: "Notifications — VenueX - Book My Space" },
       {
         name: "description",
         content: "Updates on approvals, verifications and confirmations for your bookings.",

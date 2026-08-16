@@ -220,7 +220,8 @@ function LoginPage() {
     setError("");
     try {
       await account.createSession(otpUserId, otp);
-      navigate({ to: window.location.pathname });
+      // Force full page reload to sync AuthContext and cleanly trigger routing
+      window.location.href = "/";
     } catch (err: any) {
       console.error("OTP verification error:", err);
       setError(err.message || "Invalid OTP or expired.");
@@ -243,8 +244,7 @@ function LoginPage() {
       const finishMagicLogin = async () => {
         try {
           await account.updateMagicURLSession(userId, secret);
-          // Reload without query params so it enters the standard auth flow
-          navigate({ to: window.location.pathname });
+          window.location.href = "/";
         } catch (err: any) {
           console.error("Magic link auth failed:", err);
           setError(err.message || "Invalid or expired magic link.");

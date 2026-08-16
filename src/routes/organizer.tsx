@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/organizer")({
   head: () => ({
     meta: [
-      { title: "Stores & Arrangements – Central Hall Booking" },
+      { title: "Stores & Arrangements – VenueX - Book My Space" },
       { name: "description", content: "View confirmed bookings to arrange facilities." },
     ],
   }),

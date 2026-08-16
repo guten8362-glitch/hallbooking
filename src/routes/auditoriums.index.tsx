@@ -9,7 +9,7 @@ import { ImageCarousel } from "@/components/ImageCarousel";
 export const Route = createFileRoute("/auditoriums/")({
   head: () => ({
     meta: [
-      { title: "Select an Auditorium — Central Hall Booking" },
+      { title: "Select an Auditorium — VenueX - Book My Space" },
       {
         name: "description",
         content:

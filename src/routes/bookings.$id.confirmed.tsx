@@ -11,7 +11,7 @@ import { useRef } from "react";
 export const Route = createFileRoute("/bookings/$id/confirmed")({
   head: () => ({
     meta: [
-      { title: "Booking confirmed — Central Hall Booking" },
+      { title: "Booking confirmed — VenueX - Book My Space" },
       {
         name: "description",
         content: "Your hall booking is confirmed. Download the confirmation and QR pass.",

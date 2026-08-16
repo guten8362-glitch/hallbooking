@@ -21,7 +21,7 @@ export const Route = createFileRoute("/auditoriums/$id")({
       return { meta: [{ title: "Venue unavailable" }, { name: "robots", content: "noindex" }] };
     }
     const a = loaderData.auditorium;
-    const title = `${a.name} — Central Hall Booking`;
+    const title = `${a.name} — VenueX - Book My Space`;
     const description = `${a.name}: capacity ${a.capacity}, ${a.facilities.join(", ").toLowerCase()}. Check availability and book.`;
     return {
       meta: [

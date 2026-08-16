@@ -127,12 +127,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const [initialSplash, setInitialSplash] = useState(true);
+  const { queryClient } = Route.useRouteContext();
   
   const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
 
-  useEffect(() => {
-    const timer = setTimeout(() => setInitialSplash(false), 2000);
+  const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
 
     // Listen for foreground Firebase push notifications
     setupFCMListener((payload) => {
@@ -152,41 +151,52 @@ function RootComponent() {
       }
     });
 
-    return () => clearTimeout(timer);
-  }, []);
+    // Listen for foreground Firebase push notifications
 
   const showSplash = initialSplash;
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BookingProvider>
-          {showSplash && (
-            <div className="fixed inset-0 z-50 flex h-screen w-screen flex-col items-center justify-center bg-background text-foreground transition-opacity duration-300">
-              <div className="relative flex flex-col items-center">
-                <div className="h-20 w-20 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                <img
-                  src="/logos/logo4.jpg"
-                  alt="MVIT Logo"
-                  className="absolute top-1/2 left-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-xl object-contain shadow-md"
-                />
-              </div>
-              <h1 className="mt-6 text-xl font-bold tracking-tight text-foreground">
-                Central Hall Booking
-              </h1>
-              <p className="mt-1 text-xs text-muted-foreground animate-pulse">
-                Loading experience...
-              </p>
-            </div>
-          )}
-          
-          <div className={`h-full w-full transition-opacity duration-300 ${showSplash ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <AuthSplashWrapper>
+          <BookingProvider>
             <Outlet />
-          </div>
           <Toaster />
         </BookingProvider>
+        </AuthSplashWrapper>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AuthSplashWrapper({ children }: { children: React.ReactNode }) {
+  const { ready } = useAuth();
+  
+  // Show splash screen while auth is resolving (checking session)
+  return (
+    <>
+      {!ready && (
+        <div className="fixed inset-0 z-[9999] flex h-screen w-screen flex-col items-center justify-center bg-background text-foreground">
+          <div className="relative flex flex-col items-center">
+            <div className="h-20 w-20 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+            <img
+              src="/logos/logo4.jpg"
+              alt="MVIT Logo"
+              className="absolute top-1/2 left-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-xl object-contain shadow-md"
+            />
+          </div>
+          <h1 className="mt-6 text-xl font-bold tracking-tight text-foreground">
+            VenueX - Book My Space
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground animate-pulse">
+            Loading experience...
+          </p>
+        </div>
+      )}
+      <div className={`h-full w-full transition-opacity duration-300 ${!ready ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        {children}
+      </div>
+    </>
   );
 }
 

@@ -385,7 +385,7 @@ export const sendBookingConfirmationEmail = async (details: {
           'Authorization': `Bearer ${resendKey}`,
         },
         body: JSON.stringify({
-          from: 'Central Hall Booking <onboarding@resend.dev>',
+          from: 'VenueX - Book My Space <onboarding@resend.dev>',
           to: [details.userEmail],
           subject: 'Auditorium Booking Confirmed ✅',
           html: htmlBody,

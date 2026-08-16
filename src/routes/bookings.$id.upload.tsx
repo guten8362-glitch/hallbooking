@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/bookings/$id/upload")({
   head: () => ({
     meta: [
-      { title: "Upload signed letter — Central Hall Booking" },
+      { title: "Upload signed letter — VenueX - Book My Space" },
       {
         name: "description",
         content: "Upload the signed approval letter as a PDF to move to final verification.",

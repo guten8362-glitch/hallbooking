@@ -11,7 +11,7 @@ import { APPWRITE_CONFIG } from "@/lib/appwrite/constants";
 export const Route = createFileRoute("/notification-diagnostics")({
   head: () => ({
     meta: [
-      { title: "Notification Diagnostics — Central Hall Booking" },
+      { title: "Notification Diagnostics — VenueX - Book My Space" },
       { name: "description", content: "Realtime diagnostic dashboard for push targets, FCM tokens, and device delivery." },
     ],
   }),

@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth";
 export const Route = createFileRoute("/calendar")({
   head: () => ({
     meta: [
-      { title: "Calendar — Central Hall Booking" },
+      { title: "Calendar — VenueX - Book My Space" },
       {
         name: "description",
         content: "View your bookings on a calendar.",

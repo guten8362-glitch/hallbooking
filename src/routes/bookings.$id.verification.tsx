@@ -6,7 +6,7 @@ import { Button, Surface } from "@/components/ui-kit";
 export const Route = createFileRoute("/bookings/$id/verification")({
   head: () => ({
     meta: [
-      { title: "Document under verification — Central Hall Booking" },
+      { title: "Document under verification — VenueX - Book My Space" },
       {
         name: "description",
         content: "Your signed approval letter is being verified by the coordinator's office.",

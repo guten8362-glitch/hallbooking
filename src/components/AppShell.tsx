@@ -1,4 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Bell, CalendarCheck, CalendarDays, Home, LogOut, ShieldCheck, User, Building2, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -26,13 +27,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
 
-  // Swipe gesture state for 1:1 tab switching
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number; time: number } | null>(null);
-  const [touchDeltaX, setTouchDeltaX] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-
   const prevIndexRef = useRef<number>(-1);
-  const [slideAnimClass, setSlideAnimClass] = useState("animate-fade-in");
+  const [direction, setDirection] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -137,70 +133,44 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (activeIdx !== -1 && prevIndexRef.current !== -1 && activeIdx !== prevIndexRef.current) {
-      if (activeIdx > prevIndexRef.current) {
-        setSlideAnimClass("animate-slide-in-right");
-      } else {
-        setSlideAnimClass("animate-slide-in-left");
-      }
+      setDirection(activeIdx > prevIndexRef.current ? 1 : -1);
     }
     if (activeIdx !== -1) {
       prevIndexRef.current = activeIdx;
     }
   }, [activeIdx]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const target = e.target as HTMLElement | null;
-    if (target && target.closest('button, a, input, select, textarea, [role="tablist"], [data-no-swipe="true"], .overflow-x-auto, .hide-scrollbar')) {
-      setTouchStart(null);
-      return;
-    }
-    const touch = e.touches[0];
-    setTouchStart({ x: touch.clientX, y: touch.clientY, time: Date.now() });
-    setTouchDeltaX(0);
-    setIsDragging(false);
-  };
+  const handleDragEnd = (e: any, { offset, velocity }: any) => {
+    const swipe = Math.abs(offset.x) * velocity.x;
+    const currentTabPath = getTabPath(pathname);
+    const currentIdx = visibleNavItems.findIndex((item) => currentTabPath.startsWith(item.to));
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStart) return;
-    const touch = e.touches[0];
-    const dx = touch.clientX - touchStart.x;
-    const dy = touch.clientY - touchStart.y;
-
-    if (Math.abs(dx) > Math.abs(dy) * 1.1 && Math.abs(dx) > 5) {
-      setTouchDeltaX(dx);
-      setIsDragging(true);
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart) return;
-    
-    const touch = e.changedTouches[0];
-    const finalDx = touch.clientX - touchStart.x;
-    const finalDy = touch.clientY - touchStart.y;
-    const duration = Date.now() - touchStart.time;
-    const absDx = Math.abs(finalDx);
-    const absDy = Math.abs(finalDy);
-    const velocity = absDx / Math.max(duration, 1);
-
-    if (absDx > absDy * 1.1 && (absDx >= 30 || velocity > 0.2)) {
-      const currentTabPath = getTabPath(pathname);
-      const currentIdx = visibleNavItems.findIndex((item) => currentTabPath.startsWith(item.to));
-
-      if (currentIdx !== -1) {
-        if (finalDx < 0 && currentIdx < visibleNavItems.length - 1) {
-          // Swiped LEFT -> Go to NEXT (Right) Tab
-          navigate({ to: visibleNavItems[currentIdx + 1].to });
-        } else if (finalDx > 0 && currentIdx > 0) {
-          // Swiped RIGHT -> Go to PREVIOUS (Left) Tab
-          navigate({ to: visibleNavItems[currentIdx - 1].to });
-        }
+    if (currentIdx !== -1) {
+      if (swipe < -100 && currentIdx < visibleNavItems.length - 1) {
+        // Swiped LEFT -> Go to NEXT (Right) Tab
+        navigate({ to: visibleNavItems[currentIdx + 1].to });
+      } else if (swipe > 100 && currentIdx > 0) {
+        // Swiped RIGHT -> Go to PREVIOUS (Left) Tab
+        navigate({ to: visibleNavItems[currentIdx - 1].to });
       }
     }
+  };
 
-    setTouchStart(null);
-    setTouchDeltaX(0);
-    setIsDragging(false);
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? "100%" : "-100%",
+      opacity: 0,
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? "100%" : "-100%",
+      opacity: 0,
+    })
   };
 
   const showUserUI = mounted && user;
@@ -231,7 +201,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {/* Top Right Logo & Title */}
             <div className="flex items-center gap-2.5">
               <span className="text-[0.88rem] font-bold text-foreground tracking-tight hidden sm:inline">
-                Central Hall Booking
+                VenueX - Book My Space
               </span>
               <img
                 src="/logos/logo4.jpg"
@@ -243,26 +213,34 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
       )}
 
-      <main
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        key={pathname}
-        className={cn(
-          "mx-auto w-full touch-pan-y",
-          isDragging ? "" : slideAnimClass,
-          pathname === "/login" ? "max-w-none w-full px-0 flex-1 flex flex-col justify-center py-0" : "max-w-5xl px-4 sm:px-6 pt-6 sm:pt-10",
-          showUserUI ? "pb-36 sm:pb-44" : ""
-        )}
-        style={{
-          transform: isDragging && touchDeltaX ? `translate3d(${touchDeltaX * 0.75}px, 0px, 0px)` : "none",
-          transition: isDragging ? "none" : "transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)",
-          willChange: "transform",
-        }}
-      >
-        <NotificationBanner />
-        {children}
-      </main>
+      <div className="relative flex-1 overflow-hidden">
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.main
+            key={pathname}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: "spring", stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 }
+            }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={handleDragEnd}
+            className={cn(
+              "absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden touch-pan-y",
+              pathname === "/login" ? "max-w-none w-full px-0 flex-1 flex flex-col justify-center py-0" : "max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10",
+              showUserUI ? "pb-36 sm:pb-44" : ""
+            )}
+          >
+            <NotificationBanner />
+            {children}
+          </motion.main>
+        </AnimatePresence>
+      </div>
 
       {showUserUI && (
         <nav

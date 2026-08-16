@@ -5,7 +5,7 @@ import type { Auditorium } from "./auditoriums";
 export function downloadApprovalLetter(b: Booking, aud?: Auditorium) {
   downloadBlob(
     buildPdf([
-      { text: "CENTRAL HALL BOOKING", size: 16, bold: true, gap: 0 },
+      { text: "VenueX - Book My Space", size: 16, bold: true, gap: 0 },
       { text: "Approval Letter", size: 12, gap: 22 },
       { text: `Reference: ${b.id}`, gap: 34 },
       { text: `Auditorium: ${aud?.name ?? "—"}` },

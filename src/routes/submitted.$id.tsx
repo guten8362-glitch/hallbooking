@@ -7,7 +7,7 @@ import { useState } from "react";
 export const Route = createFileRoute("/submitted/$id")({
   head: () => ({
     meta: [
-      { title: "Booking request submitted — Central Hall Booking" },
+      { title: "Booking request submitted — VenueX - Book My Space" },
       {
         name: "description",
         content: "Your auditorium request has been submitted successfully for approval.",

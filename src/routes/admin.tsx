@@ -139,8 +139,15 @@ function Admin() {
     if (user && isAdminUser(user)) {
       getAllUsersFromDatabase().then((allUsers) => {
         let visibleUsers = allUsers;
-        if (user.institution !== "IGSL") {
-          visibleUsers = allUsers.filter(u => u.institution !== "IGSL" && u.team !== "IGSL" && u.department !== "IGSL");
+        const isIgslUser = (user.institution || "").toLowerCase() === "igsl" || (user.team || "").toLowerCase() === "igsl";
+        
+        if (!isIgslUser) {
+          visibleUsers = allUsers.filter(u => {
+            const uInst = (u.institution || "").toLowerCase();
+            const uTeam = (u.team || "").toLowerCase();
+            const uDept = (u.department || "").toLowerCase();
+            return uInst !== "igsl" && uTeam !== "igsl" && uDept !== "igsl";
+          });
         }
         setUsersList(visibleUsers);
       });

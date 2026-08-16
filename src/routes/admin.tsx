@@ -17,7 +17,9 @@ import {
   Users,
   Plus,
   CalendarDays,
-  Clock
+  Clock,
+  Pencil,
+  Save
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -25,6 +27,7 @@ import { Button, PageTitle, Row, Surface } from "@/components/ui-kit";
 import { formatDate, formatTime, getStageInfo, useBookings, getNextStage, type Booking, getInstitutionLogo } from "@/lib/booking-store";
 import { useAuth, isAdminUser, type UserRole } from "@/lib/auth";
 import { addUserToDatabase, getAllUsersFromDatabase } from "@/lib/appwrite/users";
+import { updateBooking, createNotification } from "@/lib/appwrite/database";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
@@ -54,6 +57,53 @@ function Admin() {
 
   const [tab, setTab] = useState<AdminTab>("pending");
   const [search, setSearch] = useState("");
+  const [isEditingBooking, setIsEditingBooking] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const handleEditClick = () => {
+    if (selectedBooking) {
+      setEditDate(selectedBooking.date || selectedBooking.fromDate || "");
+      setEditStartTime(selectedBooking.startTime || "");
+      setEditEndTime(selectedBooking.endTime || "");
+      setIsEditingBooking(true);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedBooking) return;
+    setIsSavingEdit(true);
+    try {
+      await updateBooking(selectedBooking.id, {
+        date: editDate,
+        startTime: editStartTime,
+        endTime: editEndTime
+      });
+      await createNotification({
+        userId: selectedBooking.requesterId,
+        title: "Booking Updated",
+        message: `Sorry for the inconvenience. The admin has changed your booking (${selectedBooking.eventName || selectedBooking.id}) date/time to ${editDate} ${editStartTime} - ${editEndTime}.`,
+        bookingId: selectedBooking.id,
+        type: "info"
+      });
+      
+      // Update selected booking optimistic state so UI refreshes immediately
+      setSelectedBooking({
+        ...selectedBooking,
+        date: editDate,
+        startTime: editStartTime,
+        endTime: editEndTime
+      });
+      
+      setIsEditingBooking(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [rejectionModalBooking, setRejectionModalBooking] = useState<Booking | null>(null);
   const [rejectionCategory, setRejectionCategory] = useState("Schedule Conflict / Venue Overlap");
@@ -595,8 +645,59 @@ function Admin() {
               <Row label="Coordinator" value={selectedBooking.coordinator} />
               <Row label="Event Name" value={selectedBooking.eventName} />
               <Row label="Purpose" value={selectedBooking.purpose} />
-              <Row label="Event Dates" value={formatDate(selectedBooking.fromDate || selectedBooking.date, selectedBooking.toDate)} />
-              <Row label="Time Slot" value={`${formatTime(selectedBooking.startTime)} – ${formatTime(selectedBooking.endTime)}`} />
+              
+              {!isEditingBooking ? (
+                <>
+                  <Row 
+                    label="Event Dates" 
+                    value={
+                      <div className="flex items-center gap-2">
+                        {formatDate(selectedBooking.fromDate || selectedBooking.date, selectedBooking.toDate)}
+                        {selectedBooking.stage !== "rejected" && (
+                          <button onClick={handleEditClick} className="text-primary hover:underline flex items-center gap-1 text-[0.8rem] ml-2">
+                            <Pencil className="size-3" /> Edit
+                          </button>
+                        )}
+                      </div>
+                    } 
+                  />
+                  <Row label="Time Slot" value={`${formatTime(selectedBooking.startTime)} – ${formatTime(selectedBooking.endTime)}`} />
+                </>
+              ) : (
+                <div className="my-3 flex flex-col gap-2 rounded-xl bg-muted/40 p-4 border border-border/50">
+                  <h4 className="text-sm font-semibold mb-1 flex items-center gap-1.5"><Pencil className="size-4" /> Edit Date & Time</h4>
+                  <div className="flex flex-wrap gap-3 items-center">
+                    <input 
+                      type="date" 
+                      value={editDate} 
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="h-10 rounded-xl border border-border px-3 text-[0.88rem] bg-background"
+                    />
+                    <input 
+                      type="time" 
+                      value={editStartTime} 
+                      onChange={(e) => setEditStartTime(e.target.value)}
+                      className="h-10 rounded-xl border border-border px-3 text-[0.88rem] bg-background"
+                    />
+                    <span className="text-muted-foreground">-</span>
+                    <input 
+                      type="time" 
+                      value={editEndTime} 
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                      className="h-10 rounded-xl border border-border px-3 text-[0.88rem] bg-background"
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Button size="sm" onClick={handleSaveEdit} disabled={isSavingEdit}>
+                      {isSavingEdit ? "Saving..." : <><Save className="size-3.5 mr-1" /> Save Details</>}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setIsEditingBooking(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               <Row label="Participants" value={selectedBooking.participants} />
               {selectedBooking.remarks && <Row label="Remarks" value={selectedBooking.remarks} />}
             </div>

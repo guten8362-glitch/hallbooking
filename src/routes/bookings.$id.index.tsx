@@ -207,16 +207,18 @@ export function BookingDetail() {
               </p>
             </div>
           </div>
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to="/auditoriums"
-              className="press inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-[0.9rem] font-medium text-primary-foreground"
+              className="press inline-flex h-11 whitespace-nowrap items-center justify-center rounded-xl bg-primary px-5 text-[0.9rem] font-medium text-primary-foreground flex-shrink-0"
             >
               Book Another Hall
             </Link>
-            <Button variant="ghost" onClick={handleCancelBooking} className="text-muted-foreground hover:text-destructive">
-              Remove Record
-            </Button>
+            {!isAdmin && (
+              <Button variant="ghost" onClick={handleCancelBooking} className="text-muted-foreground hover:text-destructive whitespace-nowrap flex-shrink-0">
+                Remove Record
+              </Button>
+            )}
           </div>
         </Surface>
       )}

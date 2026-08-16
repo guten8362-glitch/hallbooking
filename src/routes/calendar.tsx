@@ -51,6 +51,7 @@ function CalendarPage() {
   const mvitFlag = isMVITUser();
 
   const visibleBookings = bookings.filter((b) => {
+    if (b.stage === "rejected") return false;
     if (mvitFlag) return true;
     
     // External users & External Coordinators see ONLY backside auditorium bookings

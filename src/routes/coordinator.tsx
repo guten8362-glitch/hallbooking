@@ -60,12 +60,18 @@ export function CoordinatorPortal() {
   const [usersList, setUsersList] = useState<any[]>([]);
 
   useEffect(() => {
-    // SECURITY PATCH: Only fetch if authorized
     if (user && (isCoordinatorUser(user) || user.role === "admin")) {
       getAllUsersFromDatabase().then((allUsers) => {
         // Coordinator can only see users from their institution
         const coordInst = (user?.institution || "").toLowerCase().trim();
-        setUsersList(allUsers.filter(u => (u.institution || "").toLowerCase().trim() === coordInst));
+        let visibleUsers = allUsers.filter(u => (u.institution || "").toLowerCase().trim() === coordInst);
+        
+        // Hide IGSL support team from non-IGSL coordinators
+        if (user?.institution !== "IGSL") {
+          visibleUsers = visibleUsers.filter(u => u.institution !== "IGSL" && u.team !== "IGSL" && u.department !== "IGSL");
+        }
+        
+        setUsersList(visibleUsers);
       });
     }
   }, [userAddedSuccess, user]);

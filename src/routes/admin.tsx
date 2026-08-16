@@ -136,9 +136,14 @@ function Admin() {
 
   useEffect(() => {
     // SECURITY PATCH: Only fetch users if the current user is actually an admin.
-    // This prevents regular users who forcefully navigate here from leaking user data in the Network tab.
     if (user && isAdminUser(user)) {
-      getAllUsersFromDatabase().then(setUsersList);
+      getAllUsersFromDatabase().then((allUsers) => {
+        let visibleUsers = allUsers;
+        if (user.institution !== "IGSL") {
+          visibleUsers = allUsers.filter(u => u.institution !== "IGSL" && u.team !== "IGSL" && u.department !== "IGSL");
+        }
+        setUsersList(visibleUsers);
+      });
     }
   }, [userAddedSuccess, user]);
 

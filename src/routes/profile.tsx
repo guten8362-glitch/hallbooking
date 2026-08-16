@@ -28,14 +28,6 @@ function Profile() {
   const institution = user?.institution || "—";
   const navigate = useNavigate();
 
-  // If user is an organizer, they should use the dedicated organizer portal 
-  // which has the images, reminders, and full details modal they need.
-  useEffect(() => {
-    if (user?.role === "organizer") {
-      navigate({ to: "/organizer" });
-    }
-  }, [user, navigate]);
-
   const isAdminOrCoordinator = user?.role === "admin" || user?.role === "super_admin" || user?.role === "coordinator";
 
   const userBookings = bookings.filter((b) => {

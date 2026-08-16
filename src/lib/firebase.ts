@@ -17,8 +17,11 @@ let messaging: any;
 try {
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
-    messaging = getMessaging(app);
-    console.log("Firebase initialized successfully");
+    // Only initialize messaging in the browser (client-side) to prevent SSR crashes
+    if (typeof window !== 'undefined') {
+      messaging = getMessaging(app);
+      console.log("Firebase initialized successfully");
+    }
   }
 } catch (error) {
   console.error("Firebase initialization error:", error);

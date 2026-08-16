@@ -1,5 +1,4 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Bell, CalendarCheck, CalendarDays, Home, LogOut, ShieldCheck, User, Building2, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -26,9 +25,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, realUser, isImpersonating, ready } = useAuth();
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
-
-  const prevIndexRef = useRef<number>(-1);
-  const [direction, setDirection] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -131,52 +127,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     return visibleNavItems.findIndex((item) => currentTabPath.startsWith(item.to));
   }, [pathname, visibleNavItems]);
 
-  useEffect(() => {
-    if (activeIdx !== -1 && prevIndexRef.current !== -1 && activeIdx !== prevIndexRef.current) {
-      setDirection(activeIdx > prevIndexRef.current ? 1 : -1);
-    }
-    if (activeIdx !== -1) {
-      prevIndexRef.current = activeIdx;
-    }
-  }, [activeIdx]);
-
-  const handleDragEnd = (e: any, { offset, velocity }: any) => {
-    const swipe = Math.abs(offset.x) * velocity.x;
-    const currentTabPath = getTabPath(pathname);
-    const currentIdx = visibleNavItems.findIndex((item) => currentTabPath.startsWith(item.to));
-
-    if (currentIdx !== -1) {
-      if (swipe < -100 && currentIdx < visibleNavItems.length - 1) {
-        // Swiped LEFT -> Go to NEXT (Right) Tab
-        navigate({ to: visibleNavItems[currentIdx + 1].to });
-      } else if (swipe > 100 && currentIdx > 0) {
-        // Swiped RIGHT -> Go to PREVIOUS (Left) Tab
-        navigate({ to: visibleNavItems[currentIdx - 1].to });
-      }
-    }
-  };
-
-  const variants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? "100%" : "-100%",
-      opacity: 0,
-    }),
-    center: {
-      zIndex: 1,
-      x: 0,
-      opacity: 1,
-    },
-    exit: (direction: number) => ({
-      zIndex: 0,
-      x: direction < 0 ? "100%" : "-100%",
-      opacity: 0,
-    })
-  };
-
   const showUserUI = mounted && user;
 
   return (
-    <div className={cn("min-h-screen overflow-x-hidden", pathname === "/login" && "h-[100dvh] overflow-hidden flex flex-col justify-center")}>
+    <div className={cn("min-h-screen overflow-x-hidden flex flex-col", pathname === "/login" && "h-[100dvh] overflow-hidden justify-center")}>
       {/* Impersonation Banner at absolute top */}
       <ImpersonationBanner />
 
@@ -213,34 +167,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
       )}
 
-      <div className="relative flex-1 overflow-hidden">
-        <AnimatePresence initial={false} custom={direction} mode="wait">
-          <motion.main
-            key={pathname}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 }
-            }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.2}
-            onDragEnd={handleDragEnd}
-            className={cn(
-              "absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden touch-pan-y",
-              pathname === "/login" ? "max-w-none w-full px-0 flex-1 flex flex-col justify-center py-0" : "max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10",
-              showUserUI ? "pb-36 sm:pb-44" : ""
-            )}
-          >
-            <NotificationBanner />
-            {children}
-          </motion.main>
-        </AnimatePresence>
-      </div>
+      <main
+        key={pathname}
+        className={cn(
+          "w-full h-full overflow-y-auto bg-background",
+          pathname === "/login" ? "max-w-none px-0 flex-1 flex flex-col justify-center py-0" : "max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10",
+          showUserUI ? "pb-36 sm:pb-44" : ""
+        )}
+      >
+        <NotificationBanner />
+        {children}
+      </main>
 
       {showUserUI && (
         <nav

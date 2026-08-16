@@ -72,6 +72,7 @@ export function AuditoriumsIndex() {
               key={a.id}
               to="/auditoriums/$id"
               params={{ id: a.id }}
+              preload="intent"
               className="surface press rise group flex items-center gap-4 overflow-hidden p-3.5 hover:shadow-[var(--shadow-lift)] sm:gap-6 sm:p-5"
               style={{ animationDelay: `${i * 70}ms` }}
             >

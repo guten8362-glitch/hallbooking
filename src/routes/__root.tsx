@@ -13,9 +13,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BookingProvider } from "../lib/booking-store";
-import { AuthProvider } from "../lib/auth";
+import { AuthProvider, useAuth } from "../lib/auth";
 import { Toaster } from "../components/ui/sonner";
-import { toast } from "sonner";
 import { setupFCMListener } from "../lib/firebase";
 
 
@@ -127,11 +126,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const { queryClient } = Route.useRouteContext();
-  
   const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
 
-  const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
+  useEffect(() => {
 
     // Listen for foreground Firebase push notifications
     setupFCMListener((payload) => {
@@ -151,18 +148,19 @@ function RootComponent() {
       }
     });
 
-    // Listen for foreground Firebase push notifications
-
-  const showSplash = initialSplash;
+    return () => {};
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AuthSplashWrapper>
           <BookingProvider>
-            <Outlet />
-          <Toaster />
-        </BookingProvider>
+            <>
+              <Outlet />
+              <Toaster />
+            </>
+          </BookingProvider>
         </AuthSplashWrapper>
       </AuthProvider>
     </QueryClientProvider>

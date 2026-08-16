@@ -35,7 +35,11 @@ export const Route = createFileRoute("/auditoriums/$id")({
   component: Details,
 });
 
-const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const WEEK_DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
 function Details() {
   const { auditorium, confirmedBookings } = Route.useLoaderData() as { auditorium: Auditorium, confirmedBookings: any[] };
@@ -49,11 +53,34 @@ function Details() {
   }, []);
 
   const today = new Date();
-  const days = Array.from({ length: 21 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return d;
-  });
+  
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const prevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0 (Sunday) to 6 (Saturday)
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   const { bookings: storeBookings } = useBookings();
 
@@ -164,16 +191,41 @@ function Details() {
         </Surface>
 
         <Surface delay={140}>
-          <h2 className="mb-1 text-[1.05rem] font-semibold">Availability</h2>
-          <p className="mb-5 text-[0.82rem] text-muted-foreground">Next three weeks</p>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[1.05rem] font-semibold">Availability</h2>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={prevMonth}
+                className="grid size-6 place-items-center rounded border border-border bg-card text-muted-foreground hover:bg-muted transition-colors"
+                title="Previous month"
+              >
+                ←
+              </button>
+              <span className="text-[0.78rem] font-medium min-w-[5.5rem] text-center tracking-tight">
+                {MONTHS[viewMonth]} {viewYear}
+              </span>
+              <button
+                type="button"
+                onClick={nextMonth}
+                className="grid size-6 place-items-center rounded border border-border bg-card text-muted-foreground hover:bg-muted transition-colors"
+                title="Next month"
+              >
+                →
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-7 gap-1.5 text-center">
-            {DAYS.map((d, i) => (
-              <span key={i} className="pb-1 text-[0.7rem] font-medium text-muted-foreground">
+            {WEEK_DAYS.map((d, i) => (
+              <span key={i} className="pb-1 text-[0.7rem] font-bold text-muted-foreground">
                 {d}
               </span>
             ))}
-            {days.map((d, i) => {
-              const dStr = d.toISOString().split("T")[0];
+            {cells.map((day, i) => {
+              if (day === null) {
+                return <div key={`empty-${i}`} className="aspect-square" />;
+              }
+              const dStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
               const booking = bookedDaysMap.get(dStr);
               return (
                 <span
@@ -186,7 +238,7 @@ function Details() {
                       : "bg-primary-soft font-medium text-primary hover:bg-primary/20",
                   )}
                 >
-                  {d.getDate()}
+                  {day}
                 </span>
               );
             })}
@@ -195,9 +247,14 @@ function Details() {
       </div>
 
       <div className="mt-10 mb-8 flex justify-center sm:justify-start">
-        <Button onClick={() => navigate({ to: "/book/$id", params: { id: auditorium.id } })}>
+        <Link 
+          to="/book/$id" 
+          params={{ id: auditorium.id }}
+          preload="intent"
+          className="press inline-flex h-13 w-full sm:w-auto min-w-[200px] items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[0.95rem] font-medium text-primary-foreground shadow-[var(--shadow-soft)] hover:brightness-110 disabled:opacity-40"
+        >
           Book This Auditorium
-        </Button>
+        </Link>
       </div>
     </AppShell>
   );

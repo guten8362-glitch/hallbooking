@@ -7,6 +7,7 @@ interface CalendarRangePickerProps {
   onChange: (dates: string[]) => void;
   minDate?: string;
   onClose?: () => void;
+  bookedDates?: string[];
 }
 
 const MONTH_NAMES = [
@@ -16,7 +17,7 @@ const MONTH_NAMES = [
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onClose }: CalendarRangePickerProps) {
+export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onClose, bookedDates = [] }: CalendarRangePickerProps) {
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const [localDates, setLocalDates] = useState<string[]>(() => {
@@ -70,7 +71,8 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
 
       d.setHours(0, 0, 0, 0);
       const isPast = d < minDateObj;
-      const isDisabled = isPast;
+      const isBooked = bookedDates.includes(dateStr);
+      const isDisabled = isPast || isBooked;
       const isToday = dateStr === todayStr;
 
       const isSelected = localDates.includes(dateStr);
@@ -79,13 +81,14 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
         day,
         dateStr,
         isDisabled,
+        isBooked,
         isToday,
         isSelected,
       });
     }
 
     return { firstDayOfMonth, days };
-  }, [currentYear, currentMonth, minDateObj, todayStr, localDates]);
+  }, [currentYear, currentMonth, minDateObj, todayStr, localDates, bookedDates]);
 
   const handleSelectDay = (dateStr: string) => {
     setLocalDates((prev) => {
@@ -173,6 +176,7 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
                 type="button"
                 disabled={item.isDisabled || (!item.isSelected && localDates.length >= 6)}
                 onClick={() => handleSelectDay(item.dateStr)}
+                title={item.isBooked ? "Not available" : ""}
                 className={cn(
                   "aspect-square flex flex-col items-center justify-center rounded-xl text-[0.85rem] font-medium transition-all relative",
                   item.isDisabled && "opacity-30 cursor-not-allowed text-muted-foreground line-through",

@@ -375,6 +375,7 @@ function BookingForm() {
         <CalendarPickerModal
           selectedDates={form.selectedDates}
           minDate={todayStr}
+          bookedDates={bookedSlots.map(s => s.date)}
           onChange={(dates) => {
             setError("");
             const sortedDates = [...dates].sort();

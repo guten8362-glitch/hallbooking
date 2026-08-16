@@ -520,10 +520,25 @@ function Admin() {
                       {hallDisplayName}
                     </h2>
                   </div>
-                  <div className="mt-1.5 flex items-center gap-3 text-[0.88rem] text-muted-foreground font-medium">
+                  <div className="mt-1.5 flex items-center flex-wrap gap-3 text-[0.88rem] text-muted-foreground font-medium">
                     <span className="flex items-center gap-1.5"><CalendarDays className="size-4 text-primary" /> {formatDate(b.fromDate || b.date, b.toDate)}</span>
-                    <span className="text-border">|</span>
+                    <span className="text-border hidden sm:inline">|</span>
                     <span className="flex items-center gap-1.5"><Clock className="size-4 text-primary" /> {formatTime(b.startTime)} – {formatTime(b.endTime)}</span>
+                    {b.stage !== "rejected" && (
+                      <button
+                        onClick={() => { 
+                          setSelectedBooking(b); 
+                          setEditDate(b.date || b.fromDate || "");
+                          setEditStartTime(b.startTime || "");
+                          setEditEndTime(b.endTime || "");
+                          setIsEditingBooking(true);
+                        }}
+                        className="ml-2 inline-flex items-center justify-center rounded-full bg-primary/10 p-1.5 text-primary hover:bg-primary hover:text-white transition-colors"
+                        title="Edit Date/Time"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -594,20 +609,6 @@ function Admin() {
                   >
                     <Eye className="size-4" /> View Request Details
                   </button>
-                  {b.stage !== "rejected" && (
-                    <button
-                      onClick={() => { 
-                        setSelectedBooking(b); 
-                        setEditDate(b.date || b.fromDate || "");
-                        setEditStartTime(b.startTime || "");
-                        setEditEndTime(b.endTime || "");
-                        setIsEditingBooking(true);
-                      }}
-                      className="press inline-flex items-center gap-1.5 text-[0.88rem] font-medium text-primary hover:underline"
-                    >
-                      <Pencil className="size-4" /> Quick Edit
-                    </button>
-                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">

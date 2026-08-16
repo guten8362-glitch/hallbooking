@@ -123,13 +123,11 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
   // Determine dynamic icon based on institution
   let iconUrl = window.location.origin + '/logos/logo4.jpg'; // default (MVIT)
   if (institution) {
-    const instStr = institution.toLowerCase();
-    if (instStr.includes('kns')) {
-      iconUrl = window.location.origin + '/logos/logo1.jpg';
-    } else if (instStr.includes('someother')) { // add more mappings as needed
-      iconUrl = window.location.origin + '/logos/logo2.jpg';
-    }
-    // You can easily add more mappings here!
+    const norm = (institution || "").toUpperCase();
+    if (norm.includes("SMVEC") || norm.includes("SMVMCH") || norm.includes("SMVCH")) iconUrl = window.location.origin + "/logos/logo5.jpg";
+    else if (norm.includes("SMVPC") || norm.includes("POLYTECHNIC")) iconUrl = window.location.origin + "/logos/logo3.jpg";
+    else if (norm.includes("SMVNC") || norm.includes("NURSING")) iconUrl = window.location.origin + "/logos/logo2.jpg";
+    else if (norm.includes("VCE") || norm.includes("EDUCATION")) iconUrl = window.location.origin + "/logos/logo1.jpg";
   }
 
   // Determine badge (small status bar icon, must be transparent/monochrome PNG)
@@ -154,6 +152,7 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
             title,
             body,
             icon: iconUrl,
+            image: iconUrl,
             click_action: window.location.origin
           },
           data: {

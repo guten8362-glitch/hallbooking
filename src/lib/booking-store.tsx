@@ -10,7 +10,7 @@ import { getStoredImpersonatedUser } from "./services/impersonation";
 import { APPWRITE_CONFIG } from "./appwrite/constants";
 import { useAuth } from "./auth";
 
-const notifyRole = async (role: string, subject: string, content: string, targetInstitution?: string, specificUrl?: string, excludeUserId?: string) => {
+export const notifyRole = async (role: string, subject: string, content: string, targetInstitution?: string, specificUrl?: string, excludeUserId?: string) => {
   try {
     const users = await getAllUsersFromDatabase();
     

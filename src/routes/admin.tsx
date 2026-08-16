@@ -24,7 +24,7 @@ import {
 import { useState, useMemo, useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button, PageTitle, Row, Surface } from "@/components/ui-kit";
-import { formatDate, formatTime, getStageInfo, useBookings, getNextStage, type Booking, getInstitutionLogo } from "@/lib/booking-store";
+import { formatDate, formatTime, getStageInfo, useBookings, getNextStage, type Booking, getInstitutionLogo, notifyRole } from "@/lib/booking-store";
 import { useAuth, isAdminUser, type UserRole } from "@/lib/auth";
 import { addUserToDatabase, getAllUsersFromDatabase } from "@/lib/appwrite/users";
 import { updateBooking, createNotification } from "@/lib/appwrite/database";
@@ -91,6 +91,15 @@ function Admin() {
         bookingId: selectedBooking.id,
         type: "info"
       });
+      
+      // Also notify the coordinator/organizer of the change
+      await notifyRole(
+        'coordinator', 
+        `Booking Updated: ${selectedBooking.eventName || 'Booking'}`, 
+        `The admin has changed the date/time for ${selectedBooking.eventName || 'this booking'} to ${editDate} ${editStartTime} - ${editEndTime}.`, 
+        selectedBooking.institution, 
+        `${window.location.origin}/bookings/${selectedBooking.id}`
+      );
       
       // Update selected booking optimistic state so UI refreshes immediately
       setSelectedBooking({

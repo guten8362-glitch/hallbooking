@@ -135,7 +135,54 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
   // Determine badge (small status bar icon, must be transparent/monochrome PNG)
   const badgeUrl = window.location.origin + '/logo192.png'; // Using generic PWA logo for the badge
 
-  // Firebase Direct Push has been removed as per instructions.
+  // Option 0: Firebase Direct Push via legacy FCM API
+  // This ensures real background notifications arrive on Android/Chrome even when the app is closed.
+  const firebaseServerKey = import.meta.env.VITE_FIREBASE_SERVER_KEY;
+  if (firebaseServerKey) {
+    try {
+      const allUsers = await getAllUsersFromDatabase();
+      // targetUserIds contains Auth UIDs (filtered). Let's check both the Auth UIDs and original userIds (emails)
+      const matchedUsers = allUsers.filter((u: any) => targetUserIds.includes(u.$id) || userIds.includes(u.email));
+      const fcmTokens = matchedUsers.map((u: any) => u.fcmToken).filter(Boolean);
+
+      if (fcmTokens.length > 0) {
+        console.log(`🔥 Sending Direct FCM Push to ${fcmTokens.length} devices.`);
+        
+        const fcmPayload = {
+          registration_ids: fcmTokens,
+          notification: {
+            title,
+            body,
+            icon: iconUrl,
+            click_action: window.location.origin
+          },
+          data: {
+            url: window.location.origin,
+            ...data
+          }
+        };
+
+        const fcmRes = await fetch("https://fcm.googleapis.com/fcm/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `key=${firebaseServerKey}`
+          },
+          body: JSON.stringify(fcmPayload)
+        });
+        
+        if (fcmRes.ok) {
+          console.log("✅ FCM Direct Push Sent Successfully");
+        } else {
+          console.error("❌ FCM Direct Push Failed", await fcmRes.text());
+        }
+      } else {
+        console.warn("⚠️ FCM Direct Push skipped: No FCM tokens found for target users in Database.");
+      }
+    } catch (err) {
+      console.error("❌ FCM Direct Push Exception", err);
+    }
+  }
 
   // Option 1: Appwrite Serverless Function (if function ID configured)
   // TEMPORARILY DISABLED: Bypassing serverless function because the cloud deployment is out of date.

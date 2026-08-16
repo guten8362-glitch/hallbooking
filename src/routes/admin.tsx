@@ -587,12 +587,28 @@ function Admin() {
 
               {/* Admin & Approvers Action Buttons */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4 mt-4">
-                <button
-                  onClick={() => setSelectedBooking(b)}
-                  className="press inline-flex items-center gap-1.5 text-[0.88rem] font-medium text-primary hover:underline"
-                >
-                  <Eye className="size-4" /> View Request Details
-                </button>
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    onClick={() => { setSelectedBooking(b); setIsEditingBooking(false); }}
+                    className="press inline-flex items-center gap-1.5 text-[0.88rem] font-medium text-primary hover:underline"
+                  >
+                    <Eye className="size-4" /> View Request Details
+                  </button>
+                  {b.stage !== "rejected" && (
+                    <button
+                      onClick={() => { 
+                        setSelectedBooking(b); 
+                        setEditDate(b.date || b.fromDate || "");
+                        setEditStartTime(b.startTime || "");
+                        setEditEndTime(b.endTime || "");
+                        setIsEditingBooking(true);
+                      }}
+                      className="press inline-flex items-center gap-1.5 text-[0.88rem] font-medium text-primary hover:underline"
+                    >
+                      <Pencil className="size-4" /> Quick Edit
+                    </button>
+                  )}
+                </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   {b.stage !== "confirmed" && b.stage !== "rejected" && (

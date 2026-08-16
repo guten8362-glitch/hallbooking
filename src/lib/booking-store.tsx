@@ -30,10 +30,16 @@ const notifyRole = async (role: string, subject: string, content: string, target
     });
 
     // Fallback: If no institution-specific coordinator found, fallback to any coordinator/admin
+    // (Only fallback to admin/super_admin if the role is coordinator, and if we're not explicitly notifying a user about their own booking confirmation to prevent duplicate notifications for admins)
     if (targetUsers.length === 0 && role === 'coordinator') {
-      targetUsers = users.filter(u => u.role === 'coordinator' || u.role === 'admin' || u.role === 'super_admin');
+      targetUsers = users.filter(u => u.role === 'coordinator');
+      // If we still have none, and it's not a confirmation notification that the admin just triggered, we can optionally add admins.
+      if (targetUsers.length === 0 && !subject.includes("Confirmed")) {
+         targetUsers = users.filter(u => u.role === 'admin' || u.role === 'super_admin');
+      }
+      
       if (excludeUserId) {
-        targetUsers = targetUsers.filter(u => u.$id !== excludeUserId && u.user_id !== excludeUserId);
+        targetUsers = targetUsers.filter(u => u.$id !== excludeUserId && u.user_id !== excludeUserId && u.email !== excludeUserId);
       }
     }
 
@@ -601,6 +607,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             bookingId: id, 
             type: "success" 
           });
+
+          // PUSH NOTIFICATION FOR USER!
+          if (b?.requesterId || requesterEmail) {
+            sendPushNotification(
+              [b?.requesterId, requesterEmail].filter(Boolean) as string[],
+              "✅ Booking Confirmed",
+              `Hello ${applicantName}, your booking for ${b?.eventName || id} was successfully approved.`,
+              { url: `${window.location.origin}/bookings/${id}/confirmed` },
+              b?.institution
+            ).catch(err => console.error("User push error", err));
+          }
           const recipients = [requesterEmail, b?.requesterId]
             .filter(Boolean)
             .filter(r => r !== user?.$id && r !== user?.email) as string[];

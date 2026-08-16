@@ -22,7 +22,6 @@ export const fetchAuditoriums = async (force: boolean = false): Promise<Auditori
   fetchPromise = (async () => {
     try {
     const data = await listHalls();
-    console.log("DB Halls Data from Appwrite:", data);
     if (Array.isArray(data)) {
       return data.map((h: any) => {
         let rawImages = h.imagesURL || h.imageURL || h.image || h.images || [];

@@ -78,6 +78,9 @@ function Admin() {
     try {
       await updateBooking(selectedBooking.id, {
         date: editDate,
+        fromDate: editDate,
+        toDate: editDate,
+        selectedDates: [editDate],
         startTime: editStartTime,
         endTime: editEndTime
       });
@@ -93,6 +96,9 @@ function Admin() {
       setSelectedBooking({
         ...selectedBooking,
         date: editDate,
+        fromDate: editDate,
+        toDate: editDate,
+        selectedDates: [editDate],
         startTime: editStartTime,
         endTime: editEndTime
       });

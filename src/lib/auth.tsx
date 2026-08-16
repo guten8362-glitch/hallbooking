@@ -66,7 +66,6 @@ export const syncPushTarget = async (token: string, oldToken?: string) => {
       }
 
       if (targetExists) {
-        console.log("✅ Appwrite Push Target already exists for this device.");
         return;
       }
     }
@@ -74,13 +73,14 @@ export const syncPushTarget = async (token: string, oldToken?: string) => {
     const targetId = ID.unique();
     try {
       await account.createPushTarget(targetId, token, "6a6c0163000e309089af");
-      console.log("✅ Appwrite Push Target created with provider ID!");
-    } catch (pErr) {
+    } catch (pErr: any) {
+      // If it's a 409 Conflict, the token is already registered (possibly on another account on this device)
+      if (pErr?.code === 409) return;
+      
       try {
         await account.createPushTarget(targetId, token);
-        console.log("✅ Appwrite Push Target created successfully (fallback)!");
       } catch (pErr2) {
-        console.warn("❌ Appwrite Push Target creation failed:", pErr2);
+        // Silently catch fallback creation errors to prevent console spam
       }
     }
   } catch (err) {

@@ -153,10 +153,10 @@ export const sendPushNotification = async (userIds: string[], title: string, bod
             body,
             icon: iconUrl,
             image: iconUrl,
-            click_action: window.location.origin
+            click_action: data?.url || window.location.origin
           },
           data: {
-            url: window.location.origin,
+            url: data?.url || window.location.origin,
             ...data
           }
         };

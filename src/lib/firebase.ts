@@ -88,12 +88,10 @@ export const requestFCMToken = async () => {
     if (token) {
       const prevToken = localStorage.getItem("fcm_token");
       if (prevToken && prevToken !== token) {
-        console.log("[FCM TOKEN ROTATED/REFRESHED]", { oldToken: prevToken.substring(0, 10) + "...", newToken: token.substring(0, 10) + "..." });
         localStorage.setItem("fcm_token_refreshed_at", new Date().toISOString());
         localStorage.setItem("fcm_token_prev", prevToken);
       }
       localStorage.setItem("fcm_token", token);
-      console.log("FCM Token generated successfully!", token);
     }
     return token;
   } catch (error: any) {

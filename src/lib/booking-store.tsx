@@ -3,7 +3,7 @@ import { listBookings, createBooking, updateBooking, deleteBooking, createNotifi
 import { subscribeToBookings } from "./appwrite/realtime";
 import { fetchAuditoriums } from "./auditoriums";
 import type { Auditorium } from "./auditoriums";
-import { getUserIdByEmail, sendPushNotification, sendEmailNotification, sendBookingConfirmationEmail } from "./appwrite/messaging";
+import { getUserIdByEmail, sendEmailNotification, sendBookingConfirmationEmail } from "./appwrite/messaging";
 import { getAllUsersFromDatabase } from "./appwrite/users";
 import { recordAuditLog } from "./services/audit";
 import { getStoredImpersonatedUser } from "./services/impersonation";
@@ -41,18 +41,20 @@ const notifyRole = async (role: string, subject: string, content: string, target
       .flatMap(u => [(u as any).mail_id, u.email, u.user_id, u.$id])
       .filter((id): id is string => Boolean(id));
 
-    // Send Push Notification with Email Fallback
-    if (userIds.length > 0) {
-      try {
-        const origin = window.location.origin;
-        const url = specificUrl || (role === 'admin' ? `${origin}/admin` : role === 'coordinator' ? `${origin}/coordinator` : `${origin}/`);
-        const pushRes = await sendPushNotification(userIds, subject, content, { url }, targetInstitution);
-        if (!pushRes) {
-          console.warn("Push notification target missing. Attempting Email notification fallback...");
-          await sendEmailNotification(userIds, subject, content);
+    // Create Appwrite Notifications for each targeted user
+    for (const u of targetUsers) {
+      const uId = u.$id || u.user_id;
+      if (uId) {
+        try {
+          await createNotification({
+            userId: uId,
+            title: subject,
+            message: content,
+            type: "info"
+          });
+        } catch (err) {
+          console.error("Failed to create appwrite notification for user", uId, err);
         }
-      } catch (err) {
-        console.error("Failed to send push/email notifications", err);
       }
     }
   } catch (err) {
@@ -585,14 +587,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           const recipients = [requesterEmail, b?.requesterId]
             .filter(Boolean)
             .filter(r => r !== user?.$id && r !== user?.email) as string[];
-          if (recipients.length > 0) {
-            sendPushNotification(
-              recipients, 
-              `✅ Booking Approved: ${b.eventName || 'Booking'}`, 
-              `Hello ${applicantName},\n\nYour auditorium booking has been APPROVED by ${approver}.\n\n${details}`,
-              { url: `${window.location.origin}/bookings/${b.id}/confirmed` }
-            );
-          }
 
           // Trigger Resend Confirmation Email (Non-blocking)
           const targetEmail = (b as any)?.requesterEmail || (b as any)?.mail_id || (b as any)?.email;
@@ -633,14 +627,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           const recipients = [requesterEmail, b?.requesterId]
             .filter(Boolean)
             .filter(r => r !== user?.$id && r !== user?.email) as string[];
-          if (recipients.length > 0) {
-            sendPushNotification(
-              recipients, 
-              `❌ Booking Rejected: ${b.eventName || 'Booking'}`, 
-              `Hello ${applicantName},\n\nYour auditorium booking has been REJECTED.\nReason: ${updateData.rejectionReason}\nRejected By: ${rejector}\n\n${details}`,
-              { url: `${window.location.origin}/bookings/${b.id}` }
-            );
-          }
           if (b?.institution !== 'MVIT') {
              // If it was rejected, notify coordinator of that institution too
              notifyRole('coordinator', `❌ Rejected: ${b?.eventName || 'Booking'}`, `The external booking for ${applicantName} was rejected.\nReason: ${updateData.rejectionReason}\n${details}`, b?.institution, `${window.location.origin}/bookings/${b?.id}`, user?.$id);

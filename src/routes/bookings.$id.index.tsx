@@ -1,11 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Download, FileCheck2, Trash2, AlertTriangle, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Download, FileCheck2, Trash2, AlertTriangle, ShieldCheck, CheckCircle2, Pencil, X, Save } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Timeline } from "@/components/Timeline";
 import { Button, Row, Surface } from "@/components/ui-kit";
 import { formatDate, getStageInfo, stageIndex, useBookings } from "@/lib/booking-store";
 import { downloadApprovalLetter } from "@/lib/letter";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { useAuth, isAdminUser } from "@/lib/auth";
+import { updateBooking, createNotification } from "@/lib/appwrite/database";
 
 export const Route = createFileRoute("/bookings/$id/")({
   head: () => ({
@@ -25,9 +28,42 @@ export const Route = createFileRoute("/bookings/$id/")({
 export function BookingDetail() {
   const { id } = Route.useParams();
   const { bookings, remove, ready, getAuditorium } = useBookings();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const booking = bookings.find((b) => b.id === id);
+
+  const isAdmin = isAdminUser(user);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDate, setEditDate] = useState(booking?.date || "");
+  const [editStartTime, setEditStartTime] = useState(booking?.startTime || "");
+  const [editEndTime, setEditEndTime] = useState(booking?.endTime || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveEdit = async () => {
+    if (!booking) return;
+    setIsSaving(true);
+    try {
+      await updateBooking(booking.id, {
+        date: editDate,
+        startTime: editStartTime,
+        endTime: editEndTime
+      });
+      await createNotification({
+        userId: booking.requesterId,
+        title: "Booking Updated",
+        message: `Sorry for the inconvenience. The admin has changed your booking (${booking.eventName || booking.id}) date/time to ${editDate} ${editStartTime} - ${editEndTime}.`,
+        bookingId: booking.id,
+        type: "info"
+      });
+      setIsEditing(false);
+      // Let real-time subscription update the store
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!ready) {
     return (
@@ -85,9 +121,47 @@ export function BookingDetail() {
             </span>
           </div>
           <h1 className="mt-1 text-[1.7rem] font-semibold">{aud?.name ?? "Auditorium"}</h1>
-          <p className="mt-1 text-[0.9rem] text-muted-foreground">
-            {formatDate(booking.date)} · {booking.startTime} – {booking.endTime}
-          </p>
+          
+          {!isEditing ? (
+            <p className="mt-1 text-[0.9rem] text-muted-foreground flex items-center gap-2">
+              {formatDate(booking.date)} · {booking.startTime} – {booking.endTime}
+              {isAdmin && booking.stage !== "rejected" && (
+                <button onClick={() => setIsEditing(true)} className="text-primary hover:underline flex items-center gap-1 text-[0.8rem]">
+                  <Pencil className="size-3" /> Edit
+                </button>
+              )}
+            </p>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center gap-3 bg-muted/30 p-3 rounded-xl border border-border/50">
+              <input 
+                type="date" 
+                value={editDate} 
+                onChange={(e) => setEditDate(e.target.value)}
+                className="rounded-md border border-border px-2 py-1 text-sm bg-background"
+              />
+              <input 
+                type="time" 
+                value={editStartTime} 
+                onChange={(e) => setEditStartTime(e.target.value)}
+                className="rounded-md border border-border px-2 py-1 text-sm bg-background"
+              />
+              <span className="text-muted-foreground">-</span>
+              <input 
+                type="time" 
+                value={editEndTime} 
+                onChange={(e) => setEditEndTime(e.target.value)}
+                className="rounded-md border border-border px-2 py-1 text-sm bg-background"
+              />
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
+                  {isSaving ? "Saving..." : <><Save className="size-3.5 mr-1" /> Save</>}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {booking.stage === "pending_coordinator" && (

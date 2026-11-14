@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getAllUsersFromDatabase } from "./appwrite/users";
+import nodemailer from "nodemailer";
 
 export interface EmailNotificationData {
   to: string[];
@@ -115,16 +116,6 @@ export const generateEmailHtml = (data: EmailNotificationData): string => {
 export const sendEmailViaResend = createServerFn({ method: "POST" })
   .validator((d: { to: string[]; subject: string; html: string; text?: string }) => d)
   .handler(async ({ data }) => {
-    const apiKey =
-      process.env.VITE_RESEND_API_KEY ||
-      process.env.RESEND_API_KEY ||
-      import.meta.env.VITE_RESEND_API_KEY ||
-      "";
-    const from =
-      process.env.VITE_RESEND_FROM_EMAIL ||
-      import.meta.env.VITE_RESEND_FROM_EMAIL ||
-      "VenueX - Book My Space <onboarding@resend.dev>";
-
     if (!data.to || data.to.length === 0) {
       return { success: false, error: "No recipient emails provided" };
     }
@@ -141,32 +132,85 @@ export const sendEmailViaResend = createServerFn({ method: "POST" })
       return { success: false, error: "No valid email addresses found" };
     }
 
-    try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          from,
-          to: validEmails,
+    // 1. Primary: Use Gmail App Password via Nodemailer (No custom domain needed, sends to ANY recipient)
+    const gmailUser =
+      process.env.VITE_GMAIL_USER ||
+      process.env.GMAIL_USER ||
+      import.meta.env.VITE_GMAIL_USER ||
+      "tonystarkakaironman01@gmail.com";
+
+    const gmailPass = (
+      process.env.VITE_GMAIL_APP_PASSWORD ||
+      process.env.GMAIL_APP_PASSWORD ||
+      import.meta.env.VITE_GMAIL_APP_PASSWORD ||
+      ""
+    ).replace(/\s+/g, "");
+
+    if (gmailUser && gmailPass) {
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: gmailUser,
+            pass: gmailPass,
+          },
+        });
+
+        const info = await transporter.sendMail({
+          from: `"VenueX - Central Auditorium" <${gmailUser}>`,
+          to: validEmails.join(", "),
           subject: data.subject,
           html: data.html,
           text: data.text || data.subject,
-        }),
-      });
+        });
 
-      const result = await response.json();
-      if (!response.ok) {
-        console.warn("Resend API warning/error:", response.status, result);
-        return { success: false, status: response.status, result };
+        console.log("Email dispatched via Gmail SMTP successfully. MessageId:", info.messageId);
+        return { success: true, messageId: info.messageId };
+      } catch (gmailErr: any) {
+        console.error("Gmail SMTP dispatch error:", gmailErr);
       }
-      return { success: true, result };
-    } catch (err: any) {
-      console.error("Resend fetch exception:", err);
-      return { success: false, error: err?.message };
     }
+
+    // 2. Secondary / Fallback: Resend API
+    const apiKey =
+      process.env.VITE_RESEND_API_KEY ||
+      process.env.RESEND_API_KEY ||
+      import.meta.env.VITE_RESEND_API_KEY ||
+      "";
+    const from =
+      process.env.VITE_RESEND_FROM_EMAIL ||
+      import.meta.env.VITE_RESEND_FROM_EMAIL ||
+      "VenueX - Book My Space <onboarding@resend.dev>";
+
+    if (apiKey) {
+      try {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            from,
+            to: validEmails,
+            subject: data.subject,
+            html: data.html,
+            text: data.text || data.subject,
+          }),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          console.warn("Resend API warning/error:", response.status, result);
+          return { success: false, status: response.status, result };
+        }
+        return { success: true, result };
+      } catch (err: any) {
+        console.error("Resend fetch exception:", err);
+      }
+    }
+
+    return { success: false, error: "No configured email service available" };
   });
 
 export const sendNotificationEmail = async (data: EmailNotificationData) => {
@@ -181,7 +225,7 @@ export const sendNotificationEmail = async (data: EmailNotificationData) => {
       },
     });
   } catch (err) {
-    console.error("Failed to send notification email via Resend:", err);
+    console.error("Failed to send notification email:", err);
     return null;
   }
 };

@@ -35,8 +35,16 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
   const [currentYear, setCurrentYear] = useState(() => initialViewDate.getFullYear());
 
   const minDateObj = useMemo(() => {
-    if (!minDate) return new Date();
-    const d = new Date(minDate + "T00:00:00");
+    if (!minDate) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      return now;
+    }
+    const parts = minDate.split("-").map(Number);
+    if (parts.length === 3) {
+      return new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+    }
+    const d = new Date(minDate);
     d.setHours(0, 0, 0, 0);
     return d;
   }, [minDate]);
@@ -66,15 +74,14 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
     const days = [];
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const d = new Date(currentYear, currentMonth, day);
+      const d = new Date(currentYear, currentMonth, day, 0, 0, 0, 0);
       const mm = String(currentMonth + 1).padStart(2, "0");
       const dd = String(day).padStart(2, "0");
       const dateStr = `${currentYear}-${mm}-${dd}`;
 
-      d.setHours(0, 0, 0, 0);
-      const isPast = d < minDateObj;
+      const isPast = d.getTime() < minDateObj.getTime();
       const isBooked = bookedDates.includes(dateStr);
-      const isDisabled = isPast || isBooked;
+      const isDisabled = isPast; // Only past dates are disabled; future dates remain selectable for available slots
       const isToday = dateStr === todayStr;
 
       const isSelected = localDates.includes(dateStr);
@@ -178,7 +185,7 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
                 type="button"
                 disabled={item.isDisabled || (!item.isSelected && localDates.length >= 6)}
                 onClick={() => handleSelectDay(item.dateStr)}
-                title={item.isBooked ? "Not available" : ""}
+                title={item.isBooked ? "Has existing bookings" : ""}
                 className={cn(
                   "aspect-square flex flex-col items-center justify-center rounded-xl text-[0.85rem] font-medium transition-all relative",
                   item.isDisabled && "opacity-30 cursor-not-allowed text-muted-foreground line-through",
@@ -189,6 +196,9 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
                 )}
               >
                 {item.day}
+                {item.isBooked && !item.isSelected && !item.isDisabled && (
+                  <span className="absolute bottom-1 size-1 rounded-full bg-amber-500/80" />
+                )}
               </button>
             );
           })}

@@ -15,14 +15,18 @@ import {
   CalendarDays,
   Clock,
   Plus,
-  Users
+  Users,
+  Trash2,
+  Loader2,
+  ChevronDown
 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button, Surface, PageTitle } from "@/components/ui-kit";
 import { formatDate, formatTime, useBookings, getStageInfo, getNextStage, type Booking, getInstitutionLogo } from "@/lib/booking-store";
 import { downloadConfirmation } from "@/lib/letter";
 import { useAuth, isCoordinatorUser } from "@/lib/auth";
-import { addUserToDatabase, getAllUsersFromDatabase } from "@/lib/appwrite/users";
+import { addUserToDatabase, getAllUsersFromDatabase, deleteUserFromDatabase } from "@/lib/appwrite/users";
 import { type UserRole } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -54,10 +58,12 @@ export function CoordinatorPortal() {
   // Add User Form State
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState<UserRole>("user");
   const [userAddedSuccess, setUserAddedSuccess] = useState("");
   const [usersList, setUsersList] = useState<any[]>([]);
+  const [userToDelete, setUserToDelete] = useState<any | null>(null);
+  const [expandedUserEmail, setExpandedUserEmail] = useState<string | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   useEffect(() => {
     if (user && (isCoordinatorUser(user) || user.role === "admin")) {
@@ -71,12 +77,11 @@ export function CoordinatorPortal() {
 
   const handleAddUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserEmail || !newUserPassword || !newUserName) return;
+    if (!newUserEmail || !newUserName) return;
     
     await addUserToDatabase({
       name: newUserName,
       email: newUserEmail,
-      password: newUserPassword,
       institution: user?.institution || "MVIT",
       role: newUserRole,
     });
@@ -84,8 +89,51 @@ export function CoordinatorPortal() {
     setUserAddedSuccess(`✅ User "${newUserName}" (${newUserEmail}) added successfully as ${newUserRole.toUpperCase()}!`);
     setNewUserName("");
     setNewUserEmail("");
-    setNewUserPassword("");
     setTimeout(() => setUserAddedSuccess(""), 4000);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    if (user && (userToDelete.email || "").toLowerCase() === (user.email || "").toLowerCase()) {
+      toast.error("You cannot delete your own account.");
+      setUserToDelete(null);
+      return;
+    }
+
+    if (
+      userToDelete.role === "admin" ||
+      userToDelete.role === "super_admin" ||
+      (userToDelete.email || "").toLowerCase().includes("superadmin") ||
+      (userToDelete.email || "").toLowerCase() === "guten8362@gmail.com"
+    ) {
+      toast.error("Coordinators cannot delete Administrator accounts.");
+      setUserToDelete(null);
+      return;
+    }
+
+    setIsDeletingUser(true);
+    try {
+      const success = await deleteUserFromDatabase(userToDelete);
+      if (success) {
+        setUsersList((prev) =>
+          prev.filter(
+            (u) =>
+              (u.email || "").toLowerCase() !== (userToDelete.email || "").toLowerCase() &&
+              (!userToDelete.docId || u.docId !== userToDelete.docId)
+          )
+        );
+        toast.success(`User "${userToDelete.name || userToDelete.email}" deleted successfully.`);
+        setUserToDelete(null);
+      } else {
+        toast.error("Failed to delete user. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      toast.error("An error occurred while deleting user.");
+    } finally {
+      setIsDeletingUser(false);
+    }
   };
 
   const isAdmin = user?.role === "admin";
@@ -340,19 +388,7 @@ export function CoordinatorPortal() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Initial Password</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Set initial password"
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-border bg-background px-3.5 text-xs font-medium outline-none focus:border-primary"
-                />
-              </div>
-
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-foreground mb-1">Assigned Role</label>
                 <select
                   value={newUserRole}
@@ -373,26 +409,133 @@ export function CoordinatorPortal() {
 
           {/* Registered User List */}
           <div className="rounded-3xl border border-border bg-card p-6 shadow-xs">
-            <h3 className="font-bold text-base text-foreground mb-3 flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" /> Registered Users Directory ({usersList.length})
-            </h3>
-            <div className="space-y-2.5">
-              {usersList.map((u) => (
-                <div key={u.email} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl border border-border/70 bg-muted/20 gap-2">
-                  <div>
-                    <p className="font-bold text-xs text-foreground">{u.name || "User"} <span className="font-mono text-muted-foreground font-normal">({u.email})</span></p>
-                    <p className="text-[0.75rem] text-muted-foreground">Institution: {u.institution}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-1">
+              <div>
+                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" /> Registered Users Directory ({usersList.length})
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Manage authorized users and applicants in {user?.institution || "your institution"}.
+                </p>
+              </div>
+              <span className="text-[0.75rem] font-medium text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full border border-border/50 self-start sm:self-auto flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span>Click any user to manage or delete</span>
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {usersList.map((u) => {
+                const isCurrentUser = user && (u.email || "").toLowerCase() === (user.email || "").toLowerCase();
+                const isExpanded = expandedUserEmail === u.email;
+
+                const initials = (u.name || u.email || "U")
+                  .split(" ")
+                  .filter(Boolean)
+                  .map((n: string) => n[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
+
+                return (
+                  <div
+                    key={u.email}
+                    onClick={() => {
+                      if (!isCurrentUser) {
+                        setExpandedUserEmail(isExpanded ? null : u.email);
+                      }
+                    }}
+                    className={cn(
+                      "relative rounded-xl p-3 border border-border/60 transition-all select-none overflow-hidden",
+                      isCurrentUser ? "bg-muted/10 cursor-default" : "cursor-pointer hover:bg-muted/30 active:scale-[0.995]",
+                      isExpanded && "bg-muted/30 ring-1 ring-border shadow-xs"
+                    )}
+                  >
+                    {/* Main User Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn(
+                          "size-8 rounded-full font-bold text-[0.72rem] flex items-center justify-center shrink-0 border",
+                          isCurrentUser 
+                            ? "bg-primary text-primary-foreground border-primary" 
+                            : "bg-primary/10 text-primary border-primary/20"
+                        )}>
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-[0.84rem] text-foreground flex items-center flex-wrap gap-1.5 truncate">
+                            <span className="truncate">{u.name || "User"}</span>
+                            {isCurrentUser && (
+                              <span className="text-[0.65rem] px-1.5 py-0.2 rounded-md bg-muted text-muted-foreground border border-border/60 font-semibold">
+                                You
+                              </span>
+                            )}
+                            <span className="font-mono text-muted-foreground font-normal text-xs ml-0.5">({u.email})</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                        <span className={cn(
+                          "px-3 py-1 rounded-full text-[0.65rem] font-bold uppercase tracking-wider",
+                          u.role === "admin" ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" :
+                          u.role === "coordinator" ? "bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300" :
+                          "bg-primary-soft text-primary"
+                        )}>
+                          {u.role}
+                        </span>
+
+                        {!isCurrentUser && (
+                          <div className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-muted text-muted-foreground transition-colors">
+                            <ChevronDown className={cn("size-4 transition-transform duration-200", isExpanded && "rotate-180 text-foreground")} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded Action Drawer */}
+                    {isExpanded && !isCurrentUser && (
+                      <div className="mt-3 pt-3 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center bg-muted/60 px-2.5 py-1 rounded-lg border border-border/40 font-medium">
+                            {u.institution || user?.institution || "MVIT"}
+                          </span>
+                          {u.department && (
+                            <span className="inline-flex items-center bg-muted/60 px-2.5 py-1 rounded-lg border border-border/40 font-medium">
+                              {u.department}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedUserEmail(null);
+                            }}
+                            className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          >
+                            Close
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUserToDelete(u);
+                            }}
+                            className="h-8 px-3.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02]"
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span>Delete User</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className={cn(
-                    "px-3 py-1 rounded-full text-[0.7rem] font-bold uppercase tracking-wider self-start sm:self-auto",
-                    u.role === "admin" ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" :
-                    u.role === "coordinator" ? "bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300" :
-                    "bg-primary-soft text-primary"
-                  )}>
-                    {u.role}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -542,6 +685,77 @@ export function CoordinatorPortal() {
             </div>
           </div>
         </div>, document.body
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl border border-border/80 bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400">
+                <Trash2 className="size-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Delete User</h3>
+                <p className="text-xs text-muted-foreground">Remove user record permanently</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-muted/40 border border-border/60 p-4 mb-4 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Name:</span>
+                <span className="font-semibold text-foreground">{userToDelete.name || "User"}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Email:</span>
+                <span className="font-mono font-medium text-foreground">{userToDelete.email}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Role:</span>
+                <span className="uppercase font-bold text-foreground">{userToDelete.role}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Institution:</span>
+                <span className="font-semibold text-foreground">{userToDelete.institution || user?.institution || "MVIT"}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
+              Are you sure you want to remove <strong className="text-foreground">{userToDelete.name || userToDelete.email}</strong>? This user will no longer be able to log in or make auditorium bookings.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 border-t border-border/60 pt-4">
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={() => setUserToDelete(null)}
+                className="press h-10 rounded-xl border border-border px-4 text-[0.88rem] font-medium hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={handleConfirmDeleteUser}
+                className="press flex items-center gap-2 h-10 rounded-xl bg-red-600 px-5 text-[0.88rem] font-semibold text-white transition-all hover:bg-red-700 shadow-md disabled:opacity-50"
+              >
+                {isDeletingUser ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="size-4" />
+                    <span>Delete User</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </AppShell>
   );

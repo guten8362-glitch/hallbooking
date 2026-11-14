@@ -31,6 +31,123 @@ export const addUserToDatabase = async (newUser: {
   }
 };
 
+export const deleteUserFromDatabase = async (userToDelete: {
+  docId?: string;
+  email: string;
+  $id?: string;
+}) => {
+  try {
+    const normalizedEmail = (userToDelete.email || '').toLowerCase().trim();
+    let targetDocId = userToDelete.docId;
+    const apiKey = import.meta.env.VITE_APPWRITE_API_KEY;
+
+    // 1. If docId is missing, look it up in the database by email
+    if (!targetDocId && normalizedEmail) {
+      try {
+        let list = await databases.listDocuments(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.collections.users,
+          [Query.equal('mail_id', normalizedEmail)]
+        );
+        if (list.documents.length === 0) {
+          list = await databases.listDocuments(
+            APPWRITE_CONFIG.databaseId,
+            APPWRITE_CONFIG.collections.users,
+            [Query.equal('email', normalizedEmail)]
+          );
+        }
+        if (list.documents.length > 0) {
+          targetDocId = list.documents[0].$id;
+        }
+      } catch (err) {
+        console.warn('Appwrite: Error finding document by email for deletion:', err);
+      }
+    }
+
+    // 2. Delete document via Admin REST API if API Key is available
+    if (apiKey && targetDocId) {
+      try {
+        await fetch(
+          `${APPWRITE_CONFIG.endpoint}/databases/${APPWRITE_CONFIG.databaseId}/collections/${APPWRITE_CONFIG.collections.users}/documents/${targetDocId}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+              'X-Appwrite-Key': apiKey,
+            },
+          }
+        );
+      } catch (err) {
+        console.warn('Appwrite: Admin API doc delete failed:', err);
+      }
+    }
+
+    // 3. Delete document via Client SDK
+    if (targetDocId) {
+      try {
+        await databases.deleteDocument(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.collections.users,
+          targetDocId
+        );
+      } catch (clientErr: any) {
+        if (clientErr?.code !== 404) {
+          console.warn('Appwrite: Client SDK deleteDocument failed:', clientErr);
+        }
+      }
+    }
+
+    // 4. Also delete any other matching documents with this email
+    if (normalizedEmail) {
+      try {
+        const dupList = await databases.listDocuments(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.collections.users,
+          [Query.equal('mail_id', normalizedEmail)]
+        );
+        for (const doc of dupList.documents) {
+          if (doc.$id !== targetDocId) {
+            try {
+              if (apiKey) {
+                fetch(`${APPWRITE_CONFIG.endpoint}/databases/${APPWRITE_CONFIG.databaseId}/collections/${APPWRITE_CONFIG.collections.users}/documents/${doc.$id}`, {
+                  method: 'DELETE',
+                  headers: {
+                    'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+                    'X-Appwrite-Key': apiKey,
+                  },
+                }).catch(() => {});
+              }
+              await databases.deleteDocument(
+                APPWRITE_CONFIG.databaseId,
+                APPWRITE_CONFIG.collections.users,
+                doc.$id
+              );
+            } catch {}
+          }
+        }
+      } catch {}
+    }
+
+    // 5. Clean up Appwrite Auth account if apiKey and $id are available
+    if (apiKey && userToDelete.$id && userToDelete.$id !== targetDocId) {
+      try {
+        await fetch(`${APPWRITE_CONFIG.endpoint}/users/${userToDelete.$id}`, {
+          method: 'DELETE',
+          headers: {
+            'X-Appwrite-Project': APPWRITE_CONFIG.projectId,
+            'X-Appwrite-Key': apiKey,
+          },
+        });
+      } catch {}
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Appwrite: Error deleting user from database', error);
+    return false;
+  }
+};
+
 export const getAllUsersFromDatabase = async (): Promise<any[]> => {
   const apiKey = import.meta.env.VITE_APPWRITE_API_KEY;
   if (apiKey) {

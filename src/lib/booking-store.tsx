@@ -5,6 +5,7 @@ import { fetchAuditoriums } from "./auditoriums";
 import type { Auditorium } from "./auditoriums";
 import { getUserIdByEmail, sendPushNotification, sendEmailNotification, sendBookingConfirmationEmail } from "./appwrite/messaging";
 import { getAllUsersFromDatabase } from "./appwrite/users";
+import { sendNotificationEmail } from "./email-service";
 import { recordAuditLog } from "./services/audit";
 import { getStoredImpersonatedUser } from "./services/impersonation";
 import { APPWRITE_CONFIG } from "./appwrite/constants";
@@ -67,7 +68,7 @@ export const notifyRole = async (role: string, subject: string, content: string,
     // Send Push Notification via Appwrite Messaging with Email Fallback
     if (userIds.length > 0) {
       try {
-        const origin = window.location.origin;
+        const origin = typeof window !== "undefined" ? window.location.origin : "https://venuex.ridemap.in";
         const url = specificUrl || (role === 'admin' ? `${origin}/admin` : role === 'coordinator' ? `${origin}/coordinator` : `${origin}/`);
         const pushRes = await sendPushNotification(userIds, subject, content, { url }, targetInstitution);
         if (!pushRes) {
@@ -76,6 +77,63 @@ export const notifyRole = async (role: string, subject: string, content: string,
         }
       } catch (err) {
         console.error("Failed to send push/email notifications", err);
+      }
+    }
+
+    // Send Resend Email to all target users (Admins, Coordinators, Organizers)
+    const targetEmails: string[] = Array.from(
+      new Set(
+        targetUsers
+          .map((u) => (u as any).mail_id || u.email)
+          .filter((e): e is string => Boolean(e) && typeof e === "string" && e.includes("@"))
+      )
+    );
+
+    if (targetEmails.length > 0) {
+      try {
+        const origin = typeof window !== "undefined" ? window.location.origin : "https://venuex.ridemap.in";
+        const url = specificUrl || (role === 'admin' ? `${origin}/admin` : role === 'coordinator' ? `${origin}/coordinator` : `${origin}/`);
+
+        let badgeColor: "green" | "red" | "amber" | "blue" = "blue";
+        if (subject.includes("Confirmed") || subject.includes("✅")) badgeColor = "green";
+        else if (subject.includes("Rejected") || subject.includes("❌")) badgeColor = "red";
+        else if (subject.includes("Pending") || subject.includes("Approval") || subject.includes("🆕") || subject.includes("⏳")) badgeColor = "amber";
+
+        const lines = content.split("\n").map(l => l.trim()).filter(Boolean);
+        const bookingDetails: { label: string; value: string }[] = [];
+        const messageLines: string[] = [];
+
+        for (const line of lines) {
+          const match = line.match(/^([^:]{2,30}):\s*(.+)$/);
+          if (match && !line.startsWith("http")) {
+            bookingDetails.push({ label: match[1].trim(), value: match[2].trim() });
+          } else {
+            messageLines.push(line);
+          }
+        }
+
+        if (bookingDetails.length === 0) {
+          bookingDetails.push(
+            { label: "Notification For", value: role.charAt(0).toUpperCase() + role.slice(1) },
+            { label: "Institution", value: targetInstitution || "All Institutions" }
+          );
+        }
+
+        await sendNotificationEmail({
+          to: targetEmails,
+          subject: subject,
+          title: subject,
+          statusBadge: {
+            label: role.toUpperCase(),
+            color: badgeColor,
+          },
+          message: messageLines.join("\n") || content,
+          bookingDetails,
+          actionUrl: url,
+          actionLabel: "View in Portal →",
+        });
+      } catch (resendErr) {
+        console.error("Resend email dispatch error in notifyRole:", resendErr);
       }
     }
   } catch (err) {
@@ -546,6 +604,34 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             notifyRole('admin', `🆕 New Booking Submitted: ${booking.eventName}`, `A new booking request is pending Coordinator approval.\n${details}`, undefined, `${window.location.origin}/admin`, user?.$id);
           }
 
+          // Email confirmation to applicant upon successful submission
+          const applicantEmail = user?.email || (user as any)?.mail_id || (booking as any)?.requesterEmail;
+          if (applicantEmail && typeof applicantEmail === 'string' && applicantEmail.includes('@')) {
+            const origin = typeof window !== "undefined" ? window.location.origin : "https://venuex.ridemap.in";
+            sendNotificationEmail({
+              to: [applicantEmail],
+              subject: `📝 Booking Submitted: ${booking.eventName}`,
+              title: "Booking Request Submitted",
+              recipientName: booking.coordinator || user?.name || "Applicant",
+              statusBadge: {
+                label: initialStage === 'pending_super_admin' ? "Pending Principal Approval" : "Pending Coordinator Review",
+                color: "amber",
+              },
+              message: `Your booking request for "${booking.eventName}" has been submitted successfully and is currently under review.`,
+              bookingDetails: [
+                { label: "Booking ID", value: booking.id },
+                { label: "Event Name", value: booking.eventName },
+                { label: "Venue", value: audName },
+                { label: "Date(s)", value: displayDate },
+                { label: "Time Slot", value: `${booking.startTime} – ${booking.endTime}` },
+                { label: "Institution", value: booking.institution },
+                { label: "Department", value: booking.department || "N/A" },
+              ],
+              actionUrl: `${origin}/bookings/${booking.id}`,
+              actionLabel: "Track Booking Status →",
+            }).catch(e => console.error("Applicant submission email error:", e));
+          }
+
           return booking;
         } catch (err) {
           console.error("API error during booking creation:", err);
@@ -624,15 +710,31 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
           // Trigger Resend Confirmation Email (Non-blocking)
           const targetEmail = (b as any)?.requesterEmail || (b as any)?.mail_id || (b as any)?.email;
-          if (targetEmail) {
-            sendBookingConfirmationEmail({
-              userEmail: targetEmail,
-              userName: applicantName,
-              bookingId: id,
-              auditoriumName: audName,
-              date: b?.date || 'N/A',
-              time: `${b?.startTime || ''} - ${b?.endTime || ''}`,
-            }).catch((emailErr) => console.error("Email sending failed", emailErr));
+          const finalTargetEmail = requesterEmail || targetEmail;
+          if (finalTargetEmail && typeof finalTargetEmail === "string" && finalTargetEmail.includes("@")) {
+            const origin = typeof window !== "undefined" ? window.location.origin : "https://venuex.ridemap.in";
+            sendNotificationEmail({
+              to: [finalTargetEmail],
+              subject: `🎉 Booking Confirmed: ${b?.eventName || 'Auditorium Booking'}`,
+              title: "Booking Approved & Confirmed!",
+              recipientName: applicantName,
+              statusBadge: {
+                label: "Approved & Confirmed",
+                color: "green",
+              },
+              message: `Great news! Your auditorium booking request for "${b?.eventName || 'your event'}" has been officially approved and confirmed by the Principal.`,
+              bookingDetails: [
+                { label: "Booking ID", value: id },
+                { label: "Event Name", value: b?.eventName || "Auditorium Event" },
+                { label: "Venue", value: audName },
+                { label: "Date", value: b?.date || "N/A" },
+                { label: "Time Slot", value: `${b?.startTime || ''} – ${b?.endTime || ''}` },
+                { label: "Institution", value: b?.institution || "MVIT" },
+                { label: "Approved By", value: updateData.approvedBy || "MVIT Principal" },
+              ],
+              actionUrl: `${origin}/bookings/${id}/confirmed`,
+              actionLabel: "View Confirmed Pass →",
+            }).catch((emailErr) => console.error("Resend confirmation email failed:", emailErr));
           }
           notifyRole('coordinator', `✅ Confirmed: ${b?.eventName || 'Booking'}`, `The booking for ${applicantName} has been finalized by the Principal.\n${details}`, b?.institution, `${window.location.origin}/bookings/${b?.id}/confirmed`, user?.$id);
           
@@ -658,6 +760,33 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             bookingId: id, 
             type: "error" 
           });
+
+          // Email applicant regarding rejection
+          const finalTargetEmail = requesterEmail || (b as any)?.requesterEmail || (b as any)?.mail_id || (b as any)?.email;
+          if (finalTargetEmail && typeof finalTargetEmail === "string" && finalTargetEmail.includes("@")) {
+            const origin = typeof window !== "undefined" ? window.location.origin : "https://venuex.ridemap.in";
+            sendNotificationEmail({
+              to: [finalTargetEmail],
+              subject: `❌ Booking Request Update: ${b?.eventName || 'Booking'}`,
+              title: "Booking Request Rejected",
+              recipientName: applicantName,
+              statusBadge: {
+                label: "Rejected",
+                color: "red",
+              },
+              message: `We regret to inform you that your booking request for "${b?.eventName || 'your event'}" was not approved.\n\nReason for rejection:\n${updateData.rejectionReason}`,
+              bookingDetails: [
+                { label: "Booking ID", value: id },
+                { label: "Event Name", value: b?.eventName || "Auditorium Event" },
+                { label: "Venue", value: audName },
+                { label: "Date", value: b?.date || "N/A" },
+                { label: "Rejection Reason", value: updateData.rejectionReason },
+              ],
+              actionUrl: `${origin}/bookings/${id}`,
+              actionLabel: "View Booking Details →",
+            }).catch(e => console.error("Resend rejection email failed:", e));
+          }
+
           const recipients = [requesterEmail, b?.requesterId]
             .filter(Boolean)
             .filter(r => r !== user?.$id && r !== user?.email) as string[];
@@ -667,6 +796,38 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           }
         } else if (stage === "pending_super_admin") {
           notifyRole('admin', `⏳ Final Approval Needed: ${b?.eventName || 'Booking'}`, `Coordinator has forwarded this booking for your approval.\n${details}`, undefined, `${window.location.origin}/bookings/${b?.id}`, user?.$id);
+
+          // Email applicant that their booking was forwarded to the Principal
+          let requesterEmail = (b as any)?.requesterEmail;
+          if (!requesterEmail && b?.requesterId) {
+             const allUsers = await getAllUsersFromDatabase();
+             const reqUser = allUsers.find(u => u.$id === b.requesterId || u.user_id === b.requesterId);
+             if (reqUser) requesterEmail = (reqUser as any).mail_id || reqUser.email;
+          }
+          const finalTargetEmail = requesterEmail || (b as any)?.requesterEmail || (b as any)?.mail_id || (b as any)?.email;
+          if (finalTargetEmail && typeof finalTargetEmail === "string" && finalTargetEmail.includes("@")) {
+            const origin = typeof window !== "undefined" ? window.location.origin : "https://venuex.ridemap.in";
+            sendNotificationEmail({
+              to: [finalTargetEmail],
+              subject: `⏳ Booking Forwarded to Principal: ${b?.eventName || 'Booking'}`,
+              title: "Coordinator Approved — Forwarded to Principal",
+              recipientName: applicantName,
+              statusBadge: {
+                label: "Coordinator Approved",
+                color: "amber",
+              },
+              message: `Your booking request for "${b?.eventName || 'your event'}" has been reviewed and approved by your College Coordinator, and is now forwarded to the MVIT Principal for final sign-off.`,
+              bookingDetails: [
+                { label: "Booking ID", value: id },
+                { label: "Event Name", value: b?.eventName || "Auditorium Event" },
+                { label: "Venue", value: audName },
+                { label: "Date", value: b?.date || "N/A" },
+                { label: "Time Slot", value: `${b?.startTime || ''} – ${b?.endTime || ''}` },
+              ],
+              actionUrl: `${origin}/bookings/${id}`,
+              actionLabel: "Track Booking Status →",
+            }).catch(e => console.error("Resend forwarded email failed:", e));
+          }
         }
 
         try {

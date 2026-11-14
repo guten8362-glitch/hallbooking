@@ -3,12 +3,13 @@ import { Download, FileCheck2, Trash2, AlertTriangle, ShieldCheck, CheckCircle2,
 import { AppShell } from "@/components/AppShell";
 import { Timeline } from "@/components/Timeline";
 import { Button, Row, Surface } from "@/components/ui-kit";
-import { formatDate, formatTime, getStageInfo, stageIndex, useBookings } from "@/lib/booking-store";
+import { formatDate, formatTime, getStageInfo, stageIndex, useBookings, notifyRole } from "@/lib/booking-store";
 import { downloadApprovalLetter } from "@/lib/letter";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useAuth, isAdminUser } from "@/lib/auth";
 import { updateBooking, createNotification } from "@/lib/appwrite/database";
+import { sendBookingScheduleUpdatedEmail } from "@/lib/email-service";
 
 const toDateInputValue = (booking: any): string => {
   if (!booking) return "";
@@ -122,6 +123,27 @@ export function BookingDetail() {
         bookingId: booking.id,
         type: "info"
       });
+
+      // Notify coordinator of the schedule change
+      await notifyRole(
+        'coordinator',
+        `Booking Updated: ${booking.eventName || 'Booking'}`,
+        `The admin has changed the date/time for ${booking.eventName || 'this booking'} to ${displayDate} ${formatTime(editStartTime)} - ${formatTime(editEndTime)}.`,
+        booking.institution,
+        `${window.location.origin}/bookings/${booking.id}`
+      );
+
+      // Send Resend email notification to the applicant
+      const aud = getAuditorium(booking.auditoriumId);
+      sendBookingScheduleUpdatedEmail({
+        booking,
+        newDate: displayDate,
+        newStartTime: formatTime(editStartTime),
+        newEndTime: formatTime(editEndTime),
+        auditoriumName: aud?.name || (booking as any).auditoriumName || "Auditorium",
+        updatedBy: user?.name || "MVIT Administration",
+      }).catch((e) => console.error("Failed to email applicant on schedule update:", e));
+
       setIsEditing(false);
       // Let real-time subscription update the store
     } catch (err) {

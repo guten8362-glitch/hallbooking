@@ -32,6 +32,7 @@ import { formatDate, formatTime, getStageInfo, useBookings, getNextStage, type B
 import { useAuth, isAdminUser, type UserRole } from "@/lib/auth";
 import { addUserToDatabase, getAllUsersFromDatabase, deleteUserFromDatabase } from "@/lib/appwrite/users";
 import { updateBooking, createNotification } from "@/lib/appwrite/database";
+import { sendBookingScheduleUpdatedEmail } from "@/lib/email-service";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
@@ -162,6 +163,17 @@ function Admin() {
         selectedBooking.institution, 
         `${window.location.origin}/bookings/${selectedBooking.id}`
       );
+
+      // Email applicant user directly via Resend
+      const hall = getAuditorium(selectedBooking.auditoriumId || (selectedBooking as any).hallId);
+      sendBookingScheduleUpdatedEmail({
+        booking: selectedBooking,
+        newDate: displayDate,
+        newStartTime: formatTime(editStartTime),
+        newEndTime: formatTime(editEndTime),
+        auditoriumName: hall?.name || (selectedBooking as any).auditoriumName || "Auditorium",
+        updatedBy: user?.name || "MVIT Administration",
+      }).catch((e) => console.error("Failed to email applicant on schedule update:", e));
       
       // Update selected booking optimistic state so UI refreshes immediately
       setSelectedBooking({

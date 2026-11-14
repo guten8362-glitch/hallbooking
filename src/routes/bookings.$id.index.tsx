@@ -3,12 +3,65 @@ import { Download, FileCheck2, Trash2, AlertTriangle, ShieldCheck, CheckCircle2,
 import { AppShell } from "@/components/AppShell";
 import { Timeline } from "@/components/Timeline";
 import { Button, Row, Surface } from "@/components/ui-kit";
-import { formatDate, getStageInfo, stageIndex, useBookings } from "@/lib/booking-store";
+import { formatDate, formatTime, getStageInfo, stageIndex, useBookings } from "@/lib/booking-store";
 import { downloadApprovalLetter } from "@/lib/letter";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useAuth, isAdminUser } from "@/lib/auth";
 import { updateBooking, createNotification } from "@/lib/appwrite/database";
+
+const toDateInputValue = (booking: any): string => {
+  if (!booking) return "";
+  if (Array.isArray(booking.selectedDates) && booking.selectedDates.length > 0) {
+    const dStr = String(booking.selectedDates[0]).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return dStr;
+  }
+  if (booking.fromDate) {
+    const trimmed = String(booking.fromDate).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (trimmed.includes("T")) {
+      const part = trimmed.split("T")[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(part)) return part;
+    }
+  }
+  if (booking.eventDate) {
+    const trimmed = String(booking.eventDate).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (trimmed.includes("T")) {
+      const part = trimmed.split("T")[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(part)) return part;
+    }
+  }
+  if (booking.date) {
+    const d = new Date(booking.date);
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
+  return "";
+};
+
+const toTimeInputValue = (timeStr?: string): string => {
+  if (!timeStr) return "";
+  let val = timeStr.trim();
+  if (/am|pm/i.test(val)) {
+    const isPM = /pm/i.test(val);
+    const clean = val.replace(/am|pm/gi, "").trim();
+    const [h, m] = clean.split(":").map(Number);
+    let hour = h;
+    if (isPM && hour < 12) hour += 12;
+    if (!isPM && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`;
+  }
+  if (val.includes(":")) {
+    const [h, m] = val.split(":");
+    return `${String(parseInt(h, 10)).padStart(2, "0")}:${String(parseInt(m, 10)).padStart(2, "0")}`;
+  }
+  return val;
+};
 
 export const Route = createFileRoute("/bookings/$id/")({
   head: () => ({
@@ -35,24 +88,37 @@ export function BookingDetail() {
 
   const isAdmin = isAdminUser(user);
   const [isEditing, setIsEditing] = useState(false);
-  const [editDate, setEditDate] = useState(booking?.date || "");
-  const [editStartTime, setEditStartTime] = useState(booking?.startTime || "");
-  const [editEndTime, setEditEndTime] = useState(booking?.endTime || "");
+  const [editDate, setEditDate] = useState(() => toDateInputValue(booking));
+  const [editStartTime, setEditStartTime] = useState(() => toTimeInputValue(booking?.startTime));
+  const [editEndTime, setEditEndTime] = useState(() => toTimeInputValue(booking?.endTime));
   const [isSaving, setIsSaving] = useState(false);
+
+  const startEdit = () => {
+    if (booking) {
+      setEditDate(toDateInputValue(booking));
+      setEditStartTime(toTimeInputValue(booking.startTime));
+      setEditEndTime(toTimeInputValue(booking.endTime));
+      setIsEditing(true);
+    }
+  };
 
   const handleSaveEdit = async () => {
     if (!booking) return;
     setIsSaving(true);
     try {
+      const displayDate = formatDate(editDate);
       await updateBooking(booking.id, {
-        date: editDate,
+        date: displayDate,
+        fromDate: editDate,
+        toDate: editDate,
+        selectedDates: [editDate],
         startTime: editStartTime,
         endTime: editEndTime
       });
       await createNotification({
         userId: booking.requesterId,
         title: "Booking Updated",
-        message: `Sorry for the inconvenience. The admin has changed your booking (${booking.eventName || booking.id}) date/time to ${editDate} ${editStartTime} - ${editEndTime}.`,
+        message: `Sorry for the inconvenience. The admin has changed your booking (${booking.eventName || booking.id}) date/time to ${displayDate} ${formatTime(editStartTime)} - ${formatTime(editEndTime)}.`,
         bookingId: booking.id,
         type: "info"
       });
@@ -124,37 +190,58 @@ export function BookingDetail() {
           
           {!isEditing ? (
             <p className="mt-1 text-[0.9rem] text-muted-foreground flex items-center gap-2">
-              {formatDate(booking.date)} · {booking.startTime} – {booking.endTime}
+              {formatDate(booking.date)} · {formatTime(booking.startTime)} – {formatTime(booking.endTime)}
               {isAdmin && booking.stage !== "rejected" && (
-                <button onClick={() => setIsEditing(true)} className="text-primary hover:underline flex items-center gap-1 text-[0.8rem]">
+                <button onClick={startEdit} className="text-primary hover:underline flex items-center gap-1 text-[0.8rem]">
                   <Pencil className="size-3" /> Edit
                 </button>
               )}
             </p>
           ) : (
-            <div className="mt-3 flex flex-wrap items-center gap-3 bg-muted/30 p-3 rounded-xl border border-border/50">
-              <input 
-                type="date" 
-                value={editDate} 
-                onChange={(e) => setEditDate(e.target.value)}
-                className="rounded-md border border-border px-2 py-1 text-sm bg-background"
-              />
-              <input 
-                type="time" 
-                value={editStartTime} 
-                onChange={(e) => setEditStartTime(e.target.value)}
-                className="rounded-md border border-border px-2 py-1 text-sm bg-background"
-              />
-              <span className="text-muted-foreground">-</span>
-              <input 
-                type="time" 
-                value={editEndTime} 
-                onChange={(e) => setEditEndTime(e.target.value)}
-                className="rounded-md border border-border px-2 py-1 text-sm bg-background"
-              />
-              <div className="flex gap-2">
+            <div className="mt-3 flex flex-col gap-3 rounded-2xl bg-muted/40 p-4 border border-border/60 shadow-xs">
+              <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                <Pencil className="size-4 text-primary" /> Edit Date & Time
+              </h4>
+              <div className="flex flex-col gap-2.5">
+                <div>
+                  <label className="text-[0.76rem] font-semibold text-muted-foreground block mb-1">
+                    Event Date
+                  </label>
+                  <input 
+                    type="date" 
+                    value={editDate} 
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-border px-3 text-[0.92rem] font-medium bg-background text-foreground shadow-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[0.76rem] font-semibold text-muted-foreground block mb-1">
+                      Start Time
+                    </label>
+                    <input 
+                      type="time" 
+                      value={editStartTime} 
+                      onChange={(e) => setEditStartTime(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-border px-3 text-[0.92rem] font-medium bg-background text-foreground shadow-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[0.76rem] font-semibold text-muted-foreground block mb-1">
+                      End Time
+                    </label>
+                    <input 
+                      type="time" 
+                      value={editEndTime} 
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-border px-3 text-[0.92rem] font-medium bg-background text-foreground shadow-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-1">
                 <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
-                  {isSaving ? "Saving..." : <><Save className="size-3.5 mr-1" /> Save</>}
+                  {isSaving ? "Saving..." : <><Save className="size-3.5 mr-1" /> Save Details</>}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
                   Cancel

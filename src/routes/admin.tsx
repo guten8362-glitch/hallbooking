@@ -54,6 +54,63 @@ export const Route = createFileRoute("/admin")({
 
 type AdminTab = "pending" | "all" | "confirmed" | "rejected" | "users";
 
+const toDateInputValue = (booking: any): string => {
+  if (!booking) return "";
+  // 1. Check selectedDates array
+  if (Array.isArray(booking.selectedDates) && booking.selectedDates.length > 0) {
+    const dStr = String(booking.selectedDates[0]).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return dStr;
+  }
+  // 2. Check fromDate
+  if (booking.fromDate) {
+    const trimmed = String(booking.fromDate).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (trimmed.includes("T")) {
+      const part = trimmed.split("T")[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(part)) return part;
+    }
+  }
+  // 3. Check eventDate
+  if (booking.eventDate) {
+    const trimmed = String(booking.eventDate).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (trimmed.includes("T")) {
+      const part = trimmed.split("T")[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(part)) return part;
+    }
+  }
+  // 4. Try parsing booking.date
+  if (booking.date) {
+    const d = new Date(booking.date);
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
+  return "";
+};
+
+const toTimeInputValue = (timeStr?: string): string => {
+  if (!timeStr) return "";
+  let val = timeStr.trim();
+  if (/am|pm/i.test(val)) {
+    const isPM = /pm/i.test(val);
+    const clean = val.replace(/am|pm/gi, "").trim();
+    const [h, m] = clean.split(":").map(Number);
+    let hour = h;
+    if (isPM && hour < 12) hour += 12;
+    if (!isPM && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`;
+  }
+  if (val.includes(":")) {
+    const [h, m] = val.split(":");
+    return `${String(parseInt(h, 10)).padStart(2, "0")}:${String(parseInt(m, 10)).padStart(2, "0")}`;
+  }
+  return val;
+};
+
 function Admin() {
   const { user, ready: authReady } = useAuth();
   const { bookings, advance, remove, ready: bookingsReady, getAuditorium } = useBookings();
@@ -69,9 +126,9 @@ function Admin() {
 
   const handleEditClick = () => {
     if (selectedBooking) {
-      setEditDate(selectedBooking.date || selectedBooking.fromDate || "");
-      setEditStartTime(selectedBooking.startTime || "");
-      setEditEndTime(selectedBooking.endTime || "");
+      setEditDate(toDateInputValue(selectedBooking));
+      setEditStartTime(toTimeInputValue(selectedBooking.startTime));
+      setEditEndTime(toTimeInputValue(selectedBooking.endTime));
       setIsEditingBooking(true);
     }
   };
@@ -80,8 +137,9 @@ function Admin() {
     if (!selectedBooking) return;
     setIsSavingEdit(true);
     try {
+      const displayDate = formatDate(editDate);
       await updateBooking(selectedBooking.id, {
-        date: editDate,
+        date: displayDate,
         fromDate: editDate,
         toDate: editDate,
         selectedDates: [editDate],
@@ -91,7 +149,7 @@ function Admin() {
       await createNotification({
         userId: selectedBooking.requesterId,
         title: "Booking Updated",
-        message: `Sorry for the inconvenience. The admin has changed your booking (${selectedBooking.eventName || selectedBooking.id}) date/time to ${editDate} ${editStartTime} - ${editEndTime}.`,
+        message: `Sorry for the inconvenience. The admin has changed your booking (${selectedBooking.eventName || selectedBooking.id}) date/time to ${displayDate} ${formatTime(editStartTime)} - ${formatTime(editEndTime)}.`,
         bookingId: selectedBooking.id,
         type: "info"
       });
@@ -100,7 +158,7 @@ function Admin() {
       await notifyRole(
         'coordinator', 
         `Booking Updated: ${selectedBooking.eventName || 'Booking'}`, 
-        `The admin has changed the date/time for ${selectedBooking.eventName || 'this booking'} to ${editDate} ${editStartTime} - ${editEndTime}.`, 
+        `The admin has changed the date/time for ${selectedBooking.eventName || 'this booking'} to ${displayDate} ${formatTime(editStartTime)} - ${formatTime(editEndTime)}.`, 
         selectedBooking.institution, 
         `${window.location.origin}/bookings/${selectedBooking.id}`
       );
@@ -108,17 +166,16 @@ function Admin() {
       // Update selected booking optimistic state so UI refreshes immediately
       setSelectedBooking({
         ...selectedBooking,
-        date: editDate,
+        date: displayDate,
         fromDate: editDate,
         toDate: editDate,
         selectedDates: [editDate],
         startTime: editStartTime,
         endTime: editEndTime
       });
-      
       setIsEditingBooking(false);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      alert("Failed to update booking date and time: " + (err?.message || "Unknown error"));
     } finally {
       setIsSavingEdit(false);
     }
@@ -737,9 +794,9 @@ function Admin() {
                       <button
                         onClick={() => { 
                           setSelectedBooking(b); 
-                          setEditDate(b.date || b.fromDate || "");
-                          setEditStartTime(b.startTime || "");
-                          setEditEndTime(b.endTime || "");
+                          setEditDate(toDateInputValue(b));
+                          setEditStartTime(toTimeInputValue(b.startTime));
+                          setEditEndTime(toTimeInputValue(b.endTime));
                           setIsEditingBooking(true);
                         }}
                         className="ml-2 inline-flex items-center justify-center rounded-full bg-primary/10 p-1.5 text-primary hover:bg-primary hover:text-white transition-colors"
@@ -890,30 +947,48 @@ function Admin() {
                   <Row label="Time Slot" value={`${formatTime(selectedBooking.startTime)} – ${formatTime(selectedBooking.endTime)}`} />
                 </>
               ) : (
-                <div className="my-3 flex flex-col gap-2 rounded-xl bg-muted/40 p-4 border border-border/50">
-                  <h4 className="text-sm font-semibold mb-1 flex items-center gap-1.5"><Pencil className="size-4" /> Edit Date & Time</h4>
-                  <div className="flex flex-wrap gap-3 items-center">
-                    <input 
-                      type="date" 
-                      value={editDate} 
-                      onChange={(e) => setEditDate(e.target.value)}
-                      className="h-10 rounded-xl border border-border px-3 text-[0.88rem] bg-background"
-                    />
-                    <input 
-                      type="time" 
-                      value={editStartTime} 
-                      onChange={(e) => setEditStartTime(e.target.value)}
-                      className="h-10 rounded-xl border border-border px-3 text-[0.88rem] bg-background"
-                    />
-                    <span className="text-muted-foreground">-</span>
-                    <input 
-                      type="time" 
-                      value={editEndTime} 
-                      onChange={(e) => setEditEndTime(e.target.value)}
-                      className="h-10 rounded-xl border border-border px-3 text-[0.88rem] bg-background"
-                    />
+                <div className="my-3 flex flex-col gap-3 rounded-2xl bg-muted/40 p-4 border border-border/60 shadow-xs">
+                  <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                    <Pencil className="size-4 text-primary" /> Edit Date & Time
+                  </h4>
+                  <div className="flex flex-col gap-2.5">
+                    <div>
+                      <label className="text-[0.76rem] font-semibold text-muted-foreground block mb-1">
+                        Event Date
+                      </label>
+                      <input 
+                        type="date" 
+                        value={editDate} 
+                        onChange={(e) => setEditDate(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-border px-3 text-[0.92rem] font-medium bg-background text-foreground shadow-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[0.76rem] font-semibold text-muted-foreground block mb-1">
+                          Start Time
+                        </label>
+                        <input 
+                          type="time" 
+                          value={editStartTime} 
+                          onChange={(e) => setEditStartTime(e.target.value)}
+                          className="h-11 w-full rounded-xl border border-border px-3 text-[0.92rem] font-medium bg-background text-foreground shadow-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[0.76rem] font-semibold text-muted-foreground block mb-1">
+                          End Time
+                        </label>
+                        <input 
+                          type="time" 
+                          value={editEndTime} 
+                          onChange={(e) => setEditEndTime(e.target.value)}
+                          className="h-11 w-full rounded-xl border border-border px-3 text-[0.92rem] font-medium bg-background text-foreground shadow-xs focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-1">
                     <Button size="sm" onClick={handleSaveEdit} disabled={isSavingEdit}>
                       {isSavingEdit ? "Saving..." : <><Save className="size-3.5 mr-1" /> Save Details</>}
                     </Button>

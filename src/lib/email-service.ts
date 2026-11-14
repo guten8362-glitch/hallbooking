@@ -143,7 +143,7 @@ export const sendEmailViaResend = createServerFn({ method: "POST" })
       process.env.VITE_GMAIL_APP_PASSWORD ||
       process.env.GMAIL_APP_PASSWORD ||
       import.meta.env.VITE_GMAIL_APP_PASSWORD ||
-      ""
+      "wbskjmolwobhekha"
     ).replace(/\s+/g, "");
 
     if (gmailUser && gmailPass) {

@@ -80,7 +80,7 @@ export const notifyRole = async (role: string, subject: string, content: string,
       }
     }
 
-    // Send Resend Email to all target users (Admins, Coordinators, Organizers)
+    // Send Email to all target users (Admins, Coordinators, Organizers)
     const targetEmails: string[] = Array.from(
       new Set(
         targetUsers
@@ -88,6 +88,11 @@ export const notifyRole = async (role: string, subject: string, content: string,
           .filter((e): e is string => Boolean(e) && typeof e === "string" && e.includes("@"))
       )
     );
+
+    // Fallback: If role is admin and no target admin emails found, ensure default admin receives it
+    if (role === 'admin' && targetEmails.length === 0) {
+      targetEmails.push('tonystarkakaironman01@gmail.com');
+    }
 
     if (targetEmails.length > 0) {
       try {
@@ -597,15 +602,19 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           const details = `🏢 Venue: ${audName}\n📅 Date: ${displayDate}\n🕒 Time: ${booking.startTime} - ${booking.endTime}\n👤 By: ${booking.coordinator} (${booking.institution})`;
           
           if (initialStage === 'pending_super_admin') {
-            notifyRole('admin', `🆕 New Booking Request: ${booking.eventName}`, details, undefined, `${window.location.origin}/bookings/${booking.id}`, user?.$id);
+            notifyRole('admin', `🆕 New Booking Request: ${booking.eventName}`, details, undefined, `${window.location.origin}/bookings/${booking.id}`);
           } else {
-            notifyRole('coordinator', `🆕 New Booking Request: ${booking.eventName}`, details, booking.institution, `${window.location.origin}/bookings/${booking.id}`, user?.$id);
+            notifyRole('coordinator', `🆕 New Booking Request: ${booking.eventName}`, details, booking.institution, `${window.location.origin}/bookings/${booking.id}`);
             // Also explicitly notify admin that a new booking was made (even if pending coordinator)
-            notifyRole('admin', `🆕 New Booking Submitted: ${booking.eventName}`, `A new booking request is pending Coordinator approval.\n${details}`, undefined, `${window.location.origin}/admin`, user?.$id);
+            notifyRole('admin', `🆕 New Booking Submitted: ${booking.eventName}`, `A new booking request is pending Coordinator approval.\n${details}`, undefined, `${window.location.origin}/admin`);
           }
 
           // Email confirmation to applicant upon successful submission
-          const applicantEmail = user?.email || (user as any)?.mail_id || (booking as any)?.requesterEmail;
+          const applicantEmail =
+            user?.email ||
+            (user as any)?.mail_id ||
+            activeUserEmail ||
+            (booking as any)?.requesterEmail;
           if (applicantEmail && typeof applicantEmail === 'string' && applicantEmail.includes('@')) {
             const origin = typeof window !== "undefined" ? window.location.origin : "https://venuex.ridemap.in";
             sendNotificationEmail({

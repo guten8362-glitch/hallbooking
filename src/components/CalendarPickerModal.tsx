@@ -21,13 +21,15 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const [localDates, setLocalDates] = useState<string[]>(() => {
-    if (selectedDates.length > 0) return [...selectedDates];
-    return [todayStr];
+    if (selectedDates && selectedDates.length > 0) return [...selectedDates];
+    return [];
   });
 
   const initialViewDate = useMemo(() => {
-    return localDates.length > 0 ? new Date(localDates[0] + "T00:00:00") : new Date();
-  }, [localDates]);
+    if (selectedDates && selectedDates.length > 0) return new Date(selectedDates[0] + "T00:00:00");
+    if (minDate) return new Date(minDate + "T00:00:00");
+    return new Date();
+  }, [selectedDates, minDate]);
 
   const [currentMonth, setCurrentMonth] = useState(() => initialViewDate.getMonth());
   const [currentYear, setCurrentYear] = useState(() => initialViewDate.getFullYear());
@@ -195,7 +197,7 @@ export function CalendarPickerModal({ selectedDates = [], onChange, minDate, onC
         {/* Footer */}
         <div className="mt-4 border-t border-border/50 pt-3 flex items-center justify-between">
           <span className="text-[0.76rem] font-medium text-foreground">
-            {localDates.length} of 6 dates selected
+            {localDates.length === 0 ? "No dates selected" : `${localDates.length} of 6 dates selected`}
           </span>
           <button
             type="button"

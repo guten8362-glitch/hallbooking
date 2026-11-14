@@ -57,10 +57,10 @@ function BookingForm() {
     ...emptyDraft(auditorium.id),
     institution: user?.institution || "MVIT",
     coordinator: user?.name || "",
-    fromDate: todayStr,
-    toDate: todayStr,
-    selectedDates: [todayStr],
-    date: formatDate(todayStr),
+    fromDate: "",
+    toDate: "",
+    selectedDates: [],
+    date: "",
     startTime: "09:00",
     endTime: "11:00",
   }));
@@ -139,9 +139,9 @@ function BookingForm() {
       auditoriumId: auditorium.id,
       institution: f.institution || user?.institution || "MVIT",
       coordinator: f.coordinator || user?.name || "",
-      fromDate: f.fromDate || draft.fromDate || todayStr,
-      toDate: f.toDate || draft.toDate || todayStr,
-      selectedDates: f.selectedDates || draft.selectedDates || [todayStr],
+      fromDate: f.fromDate || draft.fromDate || "",
+      toDate: f.toDate || draft.toDate || "",
+      selectedDates: f.selectedDates || draft.selectedDates || [],
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auditorium.id, user?.institution]);
@@ -294,7 +294,7 @@ function BookingForm() {
               onClick={() => setShowCalendarModal(true)}
               className="h-12 w-full flex items-center justify-between rounded-xl border border-border bg-card px-4 text-[0.92rem] font-medium outline-none transition-all hover:border-primary/50 hover:shadow-xs focus:ring-4 focus:ring-primary/10"
             >
-              <span className="text-foreground">
+              <span className={form.selectedDates && form.selectedDates.length > 0 ? "text-foreground font-medium" : "text-muted-foreground"}>
                 {form.selectedDates && form.selectedDates.length > 0
                   ? form.selectedDates.length === 1
                     ? formatDate(form.selectedDates[0])
